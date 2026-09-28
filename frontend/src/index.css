@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F8FAFC;
+  --color-foreground: #0F172A;
+
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0F172A;
+
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #0F172A;
+
+  --color-primary: #3B82F6;
+  --color-primary-foreground: #FFFFFF;
+
+  --color-secondary: #F1F5F9;
+  --color-secondary-foreground: #1E293B;
+
+  --color-muted: #F1F5F9;
+  --color-muted-foreground: #64748B;
+
+  --color-accent: #EFF6FF;
+  --color-accent-foreground: #1D4ED8;
+
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+
+  --color-border: #E2E8F0;
+  --color-input: #E2E8F0;
+  --color-ring: #3B82F6;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* 3D Visual Effects System */
+.bg-canvas-3d {
+  background-color: #F8FAFC;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.05) 0px, transparent 50%),
+    linear-gradient(rgba(226, 232, 240, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.4) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+}
+
+/* 3D Elevated Card */
+.card-3d {
+  background: linear-gradient(135deg, #FFFFFF 0%, #FBFDFF 100%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 1.25rem;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.02),
+    0 10px 25px -5px rgba(15, 23, 42, 0.05),
+    0 20px 25px -5px rgba(59, 130, 246, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-3d:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: 
+    0 20px 35px -8px rgba(15, 23, 42, 0.08),
+    0 15px 25px -5px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* 3D Extruded Primary Button */
+.btn-3d {
+  background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+  color: #FFFFFF;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  box-shadow: 
+    0 4px 0 #1D4ED8,
+    0 8px 16px rgba(37, 99, 235, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: all 0.12s ease;
+  transform: translateY(0);
+}
+
+.btn-3d:hover {
+  filter: brightness(1.05);
+  box-shadow: 
+    0 5px 0 #1D4ED8,
+    0 12px 20px rgba(37, 99, 235, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn-3d:active {
+  transform: translateY(3px);
+  box-shadow: 
+    0 1px 0 #1D4ED8,
+    0 3px 6px rgba(37, 99, 235, 0.2);
+}
+
+/* 3D Secondary Button */
+.btn-3d-secondary {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  box-shadow: 
+    0 3px 0 #94A3B8,
+    0 6px 12px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 #FFFFFF;
+  transition: all 0.12s ease;
+}
+
+.btn-3d-secondary:hover {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E2E8F0 100%);
+}
+
+.btn-3d-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 
+    0 1px 0 #94A3B8,
+    0 2px 4px rgba(15, 23, 42, 0.04);
+}
+
+/* Inset Neumorphic Well */
+.well-3d {
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.875rem;
+  box-shadow: 
+    inset 0 2px 4px rgba(15, 23, 42, 0.06),
+    inset 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 3D Floating Badge */
+.badge-3d {
+  border-radius: 9999px;
+  box-shadow: 
+    0 2px 5px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+/* Smooth custom scrollbars for white theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+  border: 2px solid #F1F5F9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
