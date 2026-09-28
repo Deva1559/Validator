@@ -1,6 +1,8 @@
 import json
 import asyncio
-from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form
+import traceback
+from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -12,10 +14,27 @@ app = FastAPI(title="ModelValidator AI API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = JSONResponse(content={"status": "ok"})
+    else:
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            traceback.print_exc()
+            response = JSONResponse(status_code=500, content={"error": str(exc)})
+            
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 def get_db():
     db = SessionLocal()
@@ -268,107 +287,165 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
 
 @app.get("/leaderboard")
 def get_leaderboard(db: Session = Depends(get_db)):
-    runs = db.query(ValidationRun).all()
-    # Rank by final deterministic score descending
-    sorted_runs = sorted(runs, key=lambda x: x.final_score or 0, reverse=True)
-    return [format_run_data(r, i + 1, current_baselines) for i, r in enumerate(sorted_runs)]
+    try:
+        runs = db.query(ValidationRun).all()
+        sorted_runs = sorted(runs, key=lambda x: x.final_score or 0, reverse=True)
+        return [format_run_data(r, i + 1, current_baselines) for i, r in enumerate(sorted_runs)]
+    except Exception as e:
+        traceback.print_exc()
+        return []
 
 @app.get("/api/validations/{run_id}/evidence")
 def get_validation_evidence(run_id: int, db: Session = Depends(get_db)):
-    evidence = db.query(ValidationEvidence).filter(ValidationEvidence.run_id == run_id).all()
-    return evidence
+    try:
+        evidence = db.query(ValidationEvidence).filter(ValidationEvidence.run_id == run_id).all()
+        return evidence
+    except Exception as e:
+        traceback.print_exc()
+        return []
 
 @app.get("/api/validations/{run_id}/findings")
 def get_validation_findings(run_id: int, db: Session = Depends(get_db)):
-    findings = db.query(ValidationFinding).filter(ValidationFinding.run_id == run_id).all()
-    return findings
+    try:
+        findings = db.query(ValidationFinding).filter(ValidationFinding.run_id == run_id).all()
+        return findings
+    except Exception as e:
+        traceback.print_exc()
+        return []
 
 @app.get("/api/validations/{run_id}/scoring")
 def get_validation_scoring(run_id: int, db: Session = Depends(get_db)):
-    scoring = db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == run_id).all()
-    run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
-    return {"final_score": run.final_score if run else 0.0, "breakdown": scoring}
+    try:
+        scoring = db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == run_id).all()
+        run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
+        return {"final_score": run.final_score if run else 0.0, "breakdown": scoring}
+    except Exception as e:
+        traceback.print_exc()
+        return {"final_score": 0.0, "breakdown": []}
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-    runs = db.query(ValidationRun).all()
-    total = len(runs)
-    target_acc = current_baselines.accuracy
-    target_f1 = current_baselines.macro_f1
-    target_time = current_baselines.training_time
-    
-    acc_list = []
-    f1_list = []
-    time_list = []
-    student_records = []
-    
-    below_target_count = 0
-    meets_target_count = 0
-    unverified_count = 0
-    
-    for r in runs:
-        student_acc = None
-        student_f1 = None
-        student_time = None
+    try:
+        runs = db.query(ValidationRun).all()
+        total = len(runs)
+        target_acc = current_baselines.accuracy
+        target_f1 = current_baselines.macro_f1
+        target_time = current_baselines.training_time
         
-        for ev in r.evidence:
-            if ev.verification_status == "VERIFIED" and ev.extracted_value:
-                try:
-                    if ev.metric_name == "Accuracy":
-                        student_acc = round(float(ev.extracted_value.replace("%", "").strip()), 2)
-                    elif ev.metric_name == "Macro F1":
-                        student_f1 = round(float(ev.extracted_value.replace("%", "").strip()), 2)
-                    elif ev.metric_name == "Training Time":
-                        student_time = round(float(ev.extracted_value.replace("s", "").strip()), 2)
-                except Exception:
-                    pass
-                    
-        if student_acc is not None:
-            acc_list.append(student_acc)
-            if student_acc >= target_acc:
-                meets_target_count += 1
+        acc_list = []
+        f1_list = []
+        time_list = []
+        student_records = []
+        
+        below_target_count = 0
+        meets_target_count = 0
+        unverified_count = 0
+        
+        for r in runs:
+            student_acc = None
+            student_f1 = None
+            student_time = None
+            
+            for ev in r.evidence:
+                if ev.verification_status == "VERIFIED" and ev.extracted_value:
+                    try:
+                        if ev.metric_name == "Accuracy":
+                            student_acc = round(float(ev.extracted_value.replace("%", "").strip()), 2)
+                        elif ev.metric_name == "Macro F1":
+                            student_f1 = round(float(ev.extracted_value.replace("%", "").strip()), 2)
+                        elif ev.metric_name == "Training Time":
+                            student_time = round(float(ev.extracted_value.replace("s", "").strip()), 2)
+                    except Exception:
+                        pass
+                        
+            if student_acc is not None:
+                acc_list.append(student_acc)
+                if student_acc >= target_acc:
+                    meets_target_count += 1
+                else:
+                    below_target_count += 1
             else:
-                below_target_count += 1
-        else:
-            unverified_count += 1
+                unverified_count += 1
+                
+            if student_f1 is not None:
+                f1_list.append(student_f1)
+            if student_time is not None:
+                time_list.append(student_time)
+                
+            student_records.append({
+                "name": r.student_name,
+                "accuracy": student_acc if student_acc is not None else 0.0,
+                "is_verified": student_acc is not None,
+                "meets_target": student_acc is not None and student_acc >= target_acc,
+                "target": target_acc
+            })
             
-        if student_f1 is not None:
-            f1_list.append(student_f1)
-        if student_time is not None:
-            time_list.append(student_time)
-            
-        student_records.append({
-            "name": r.student_name,
-            "accuracy": student_acc if student_acc is not None else 0.0,
-            "is_verified": student_acc is not None,
-            "meets_target": student_acc is not None and student_acc >= target_acc,
-            "target": target_acc
-        })
+        avg_acc = round(sum(acc_list) / len(acc_list), 1) if acc_list else 0.0
+        avg_f1 = round(sum(f1_list) / len(f1_list), 1) if f1_list else 0.0
+        avg_time = round(sum(time_list) / len(time_list), 1) if time_list else 0.0
         
-    avg_acc = round(sum(acc_list) / len(acc_list), 1) if acc_list else 0.0
-    avg_f1 = round(sum(f1_list) / len(f1_list), 1) if f1_list else 0.0
-    avg_time = round(sum(time_list) / len(time_list), 1) if time_list else 0.0
-    
-    success = sum(1 for r in runs if r.overall_status == "VERIFIED")
-    
-    # Baseline-correlated distribution (Dynamically changes when baselines change)
-    dist = [
-        {
-            "name": f">= {target_acc}% (Target Met)",
-            "students": meets_target_count,
-            "fill": "#10B981"
-        },
-        {
-            "name": f"< {target_acc}% (Below Target)",
-            "students": below_target_count,
-            "fill": "#F59E0B"
-        },
-        {
-            "name": "Unverified / 0%",
-            "students": unverified_count,
-            "fill": "#6B7280"
+        success = sum(1 for r in runs if r.overall_status == "VERIFIED")
+        
+        # Baseline-correlated distribution (Dynamically changes when baselines change)
+        dist = [
+            {
+                "name": f">= {target_acc}% (Target Met)",
+                "students": meets_target_count,
+                "fill": "#10B981"
+            },
+            {
+                "name": f"< {target_acc}% (Below Target)",
+                "students": below_target_count,
+                "fill": "#F59E0B"
+            },
+            {
+                "name": "Unverified / 0%",
+                "students": unverified_count,
+                "fill": "#6B7280"
+            }
+        ]
+        
+        # Score range tiers
+        range_dist = [
+            {"name": "< 60%", "students": sum(1 for a in acc_list if a < 60), "fill": "#EF4444"},
+            {"name": "60-75%", "students": sum(1 for a in acc_list if 60 <= a < 75), "fill": "#F59E0B"},
+            {"name": "75-90%", "students": sum(1 for a in acc_list if 75 <= a < 90), "fill": "#3B82F6"},
+            {"name": "90-100%", "students": sum(1 for a in acc_list if a >= 90), "fill": "#10B981"},
+            {"name": "Unverified", "students": unverified_count, "fill": "#6B7280"}
+        ]
+        
+        return {
+            "total_students": total,
+            "validated": total,
+            "pending": 0,
+            "avg_accuracy": avg_acc,
+            "avg_macro_f1": avg_f1,
+            "avg_training_time": avg_time,
+            "validation_success_rate": round((success / total) * 100, 1) if total > 0 else 0,
+            "accuracy_distribution": dist,
+            "range_distribution": range_dist,
+            "student_accuracies": student_records,
+            "baselines": current_baselines.dict()
         }
-    ]
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            "total_students": 0,
+            "validated": 0,
+            "pending": 0,
+            "avg_accuracy": 0.0,
+            "avg_macro_f1": 0.0,
+            "avg_training_time": 0.0,
+            "validation_success_rate": 0,
+            "accuracy_distribution": [
+                {"name": f">= {current_baselines.accuracy}% (Target Met)", "students": 0, "fill": "#10B981"},
+                {"name": f"< {current_baselines.accuracy}% (Below Target)", "students": 0, "fill": "#F59E0B"},
+                {"name": "Unverified / 0%", "students": 0, "fill": "#6B7280"}
+            ],
+            "range_distribution": [],
+            "student_accuracies": [],
+            "baselines": current_baselines.dict()
+        }
     
     # Score range tiers
     range_dist = [

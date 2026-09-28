@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -93,3 +93,22 @@ class AuditLog(Base):
     run = relationship("ValidationRun", back_populates="audit_logs")
 
 Base.metadata.create_all(bind=engine)
+
+# Auto-migrate SQLite schema if table existed prior to adding department, section, roll_no
+def auto_migrate():
+    with engine.connect() as conn:
+        try:
+            result = conn.execute(text("PRAGMA table_info(validation_runs)"))
+            existing_cols = [row[1] for row in result.fetchall()]
+            if existing_cols:
+                if "department" not in existing_cols:
+                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN department VARCHAR DEFAULT 'AIML'"))
+                if "section" not in existing_cols:
+                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN section VARCHAR DEFAULT 'A'"))
+                if "roll_no" not in existing_cols:
+                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN roll_no VARCHAR DEFAULT '24AM001'"))
+                conn.commit()
+        except Exception as e:
+            print("Auto-migration note:", e)
+
+auto_migrate()
