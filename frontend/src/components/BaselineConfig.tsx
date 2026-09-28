@@ -57,7 +57,7 @@ export const BaselineConfig = () => {
         setAuthError("Incorrect security key! Access denied. Only authorized faculty/staff can use this button.");
       }
     } catch (err) {
-      if (securityKey.trim() === "FACULTY@2025") {
+      if (securityKey.trim() === "karunakaran@aiml") {
         setIsAuthorized(true);
         setAuthError(null);
       } else {
@@ -331,7 +331,7 @@ export const BaselineConfig = () => {
                       setSecurityKey(e.target.value);
                       if (authError) setAuthError(null);
                     }}
-                    placeholder="Enter Faculty Security Key (e.g. FACULTY@2025)"
+                    placeholder="Enter Faculty Security Key"
                     className={`w-full px-4 py-2.5 pr-10 text-xs font-mono rounded-xl border bg-white shadow-inner focus:outline-none transition-all ${
                       authError ? 'border-rose-400 focus:ring-2 focus:ring-rose-200' : 'border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'
                     }`}
@@ -376,7 +376,7 @@ export const BaselineConfig = () => {
               )}
 
               <p className="text-[11px] text-slate-400 italic">
-                * Security Notice: Testing data cleanup is strictly restricted to department faculty. Default authorization key: <code className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold">FACULTY@2025</code>
+                * Security Notice: Testing data cleanup is strictly restricted to authorized department faculty.
               </p>
             </div>
           ) : (

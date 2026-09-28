@@ -56,8 +56,8 @@ current_baselines = BaselineConfig()
 def verify_faculty_key(provided_key: Optional[str]) -> bool:
     if not provided_key:
         return False
-    configured_key = os.getenv("ADMIN_SECURITY_KEY", "FACULTY@2025").strip()
-    valid_keys = {configured_key, "FACULTY@2025", "STAFF2025", "ADMIN2025"}
+    configured_key = os.getenv("ADMIN_SECURITY_KEY", "karunakaran@aiml").strip()
+    valid_keys = {configured_key, "karunakaran@aiml"}
     return provided_key.strip() in valid_keys
 
 class SecurityKeyRequest(BaseModel):
