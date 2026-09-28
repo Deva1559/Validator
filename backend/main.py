@@ -1,6 +1,6 @@
 import json
 import asyncio
-from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -46,28 +46,53 @@ def clear_all_validation_data(db: Session = Depends(get_db)):
 
 
 @app.post("/upload")
-async def upload_notebooks(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def upload_notebooks(
+    background_tasks: BackgroundTasks, 
+    files: list[UploadFile] = File(...), 
+    name: str = Form(None),
+    dept: str = Form(None),
+    sec: str = Form(None),
+    roll_no: str = Form(None),
+    db: Session = Depends(get_db)
+):
     batch_id = "BATCH_CURRENT"
     results = []
     
     for file in files:
         content = await file.read()
-        student_name = file.filename.split(".")[0].replace("_", " ").title()
+        final_name = name.strip() if name and name.strip() else file.filename.split(".")[0].replace("_", " ").title()
+        final_dept = dept.strip() if dept and dept.strip() else "AIML"
+        final_sec = sec.strip() if sec and sec.strip() else "A"
+        final_roll = roll_no.strip() if roll_no and roll_no.strip() else "24AM001"
         
-        # Create DB record
-        run = ValidationRun(student_name=student_name, filename=file.filename, batch_id=batch_id)
+        # Create DB record with student metadata
+        run = ValidationRun(
+            student_name=final_name, 
+            department=final_dept,
+            section=final_sec,
+            roll_no=final_roll,
+            filename=file.filename, 
+            batch_id=batch_id
+        )
         db.add(run)
         db.commit()
         db.refresh(run)
         
         # Audit Log
-        db.add(AuditLog(run_id=run.id, action="Notebook Uploaded"))
+        db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Dept: {final_dept} | Sec: {final_sec}"))
         db.commit()
         
         # Run Evidence Analysis
         analyze_notebook_evidence(db, run.id, file.filename, content, current_baselines.dict())
         
-        results.append({"id": run.id, "filename": file.filename})
+        results.append({
+            "id": run.id, 
+            "filename": file.filename, 
+            "student_name": final_name,
+            "department": final_dept,
+            "section": final_sec,
+            "roll_no": final_roll
+        })
             
     return {"uploaded": len(files), "results": results}
 
@@ -211,6 +236,9 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
         "id": r.id,
         "rank": rank,
         "student_name": r.student_name,
+        "dept": getattr(r, 'department', None) or "AIML",
+        "sec": getattr(r, 'section', None) or "A",
+        "roll_no": getattr(r, 'roll_no', None) or "24AM001",
         "filename": r.filename,
         "batch_id": r.batch_id,
         "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",

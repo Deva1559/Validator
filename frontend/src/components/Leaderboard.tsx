@@ -192,8 +192,17 @@ export const Leaderboard = () => {
 
                     {/* Student Name */}
                     <td className="p-4">
-                      <p className="font-bold text-slate-900 text-sm">{row.student_name}</p>
-                      <p className="text-xs text-slate-400 truncate max-w-[190px] font-mono mt-0.5">{row.filename}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-900 text-sm">{row.student_name}</p>
+                        {row.roll_no && (
+                          <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
+                            {row.roll_no}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 truncate max-w-[210px] font-mono mt-0.5">
+                        {row.dept && `${row.dept} - Sec ${row.sec || 'A'} • `}{row.filename}
+                      </p>
                     </td>
 
                     {/* Accuracy vs Base */}

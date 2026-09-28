@@ -15,6 +15,9 @@ class ValidationRun(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     student_name = Column(String, index=True)
+    department = Column(String, default="AIML", nullable=True)
+    section = Column(String, default="A", nullable=True)
+    roll_no = Column(String, default="24AM001", nullable=True)
     filename = Column(String)
     batch_id = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)

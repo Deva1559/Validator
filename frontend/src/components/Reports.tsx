@@ -160,10 +160,19 @@ export const Reports = () => {
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate max-w-[190px]">
-                      {report.student_name}
-                    </h3>
-                    <p className="text-xs text-slate-400 truncate max-w-[190px] font-mono mt-0.5">{report.filename}</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate max-w-[190px]">
+                        {report.student_name}
+                      </h3>
+                      {report.roll_no && (
+                        <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
+                          {report.roll_no}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 truncate max-w-[210px] font-mono mt-0.5">
+                      {report.dept && `${report.dept} (${report.sec || 'A'}) • `}{report.filename}
+                    </p>
                   </div>
                   {report.status === "VERIFIED" ? (
                     <span className="flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
@@ -249,7 +258,10 @@ export const Reports = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                      Student: <span className="text-blue-600 font-bold">{selectedRun.student_name}</span> | Notebook: <span className="font-mono text-slate-700 font-semibold">{selectedRun.filename}</span>
+                      Student: <span className="text-blue-600 font-bold">{selectedRun.student_name}</span>
+                      {selectedRun.roll_no && <> | Roll: <span className="font-mono font-bold text-slate-800">{selectedRun.roll_no}</span></>}
+                      {selectedRun.dept && <> | Dept: <span className="font-semibold text-slate-700">{selectedRun.dept} (Sec {selectedRun.sec || 'A'})</span></>}
+                      | Notebook: <span className="font-mono text-slate-700 font-semibold">{selectedRun.filename}</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
