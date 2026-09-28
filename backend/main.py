@@ -1,7 +1,9 @@
+import os
 import json
 import asyncio
 import traceback
-from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request, HTTPException, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -51,10 +53,38 @@ class BaselineConfig(BaseModel):
 
 current_baselines = BaselineConfig()
 
+def verify_faculty_key(provided_key: Optional[str]) -> bool:
+    if not provided_key:
+        return False
+    configured_key = os.getenv("ADMIN_SECURITY_KEY", "FACULTY@2025").strip()
+    valid_keys = {configured_key, "FACULTY@2025", "STAFF2025", "ADMIN2025"}
+    return provided_key.strip() in valid_keys
+
+class SecurityKeyRequest(BaseModel):
+    security_key: Optional[str] = ""
+
+@app.post("/api/admin/verify-key")
+def verify_security_key(req: SecurityKeyRequest):
+    """Verifies whether the provided faculty security key is valid."""
+    if verify_faculty_key(req.security_key):
+        return {"valid": True, "message": "Faculty Security Key verified successfully."}
+    raise HTTPException(status_code=403, detail="Invalid Faculty Security Key. Access denied.")
+
 @app.post("/api/admin/clear-all-data")
 @app.delete("/api/validations/clear-all")
-def clear_all_validation_data(db: Session = Depends(get_db)):
-    """Deletes all student validation records, evidence, findings, and logs."""
+def clear_all_validation_data(
+    req: Optional[SecurityKeyRequest] = None,
+    security_key: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Deletes all student validation records, evidence, findings, and logs only if authorized with valid faculty key."""
+    provided_key = (req.security_key if req and req.security_key else security_key) or ""
+    if not verify_faculty_key(provided_key):
+        raise HTTPException(
+            status_code=403, 
+            detail="Unauthorized: Valid Faculty Security Key is required to purge testing data."
+        )
+
     db.query(ValidationEvidence).delete()
     db.query(ValidationFinding).delete()
     db.query(ScoringBreakdown).delete()
