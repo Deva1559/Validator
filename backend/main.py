@@ -32,38 +32,18 @@ class BaselineConfig(BaseModel):
 
 current_baselines = BaselineConfig()
 
-@app.on_event("startup")
-def auto_seed_if_empty():
-    """Auto-seed sample student validations if database is fresh/empty."""
-    db = SessionLocal()
-    try:
-        count = db.query(ValidationRun).count()
-        if count == 0:
-            import os
-            notebooks = [
-                ("Alice Smith", "student_alice_random_forest.ipynb"),
-                ("Bob Johnson", "student_bob_gradient_boosting.ipynb")
-            ]
-            for name, fname in notebooks:
-                candidates = [
-                    os.path.join("..", fname),
-                    os.path.join(".", fname),
-                    os.path.join(os.path.dirname(__file__), "..", fname),
-                    os.path.join(os.path.dirname(__file__), fname)
-                ]
-                nb_path = next((p for p in candidates if os.path.exists(p)), None)
-                if nb_path:
-                    with open(nb_path, "rb") as f:
-                        content = f.read()
-                    run = ValidationRun(student_name=name, filename=fname, batch_id="BATCH-001")
-                    db.add(run)
-                    db.commit()
-                    db.refresh(run)
-                    analyze_notebook_evidence(db, run.id, fname, content, current_baselines.dict())
-    except Exception as e:
-        print(f"Auto-seed notification: {e}")
-    finally:
-        db.close()
+@app.post("/api/admin/clear-all-data")
+@app.delete("/api/validations/clear-all")
+def clear_all_validation_data(db: Session = Depends(get_db)):
+    """Deletes all student validation records, evidence, findings, and logs."""
+    db.query(ValidationEvidence).delete()
+    db.query(ValidationFinding).delete()
+    db.query(ScoringBreakdown).delete()
+    db.query(AuditLog).delete()
+    db.query(ValidationRun).delete()
+    db.commit()
+    return {"message": "All student testing and validation records have been completely cleared."}
+
 
 @app.post("/upload")
 async def upload_notebooks(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...), db: Session = Depends(get_db)):

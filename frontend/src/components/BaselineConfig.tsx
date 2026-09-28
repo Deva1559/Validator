@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Settings2, Loader2, CheckCircle2 } from 'lucide-react';
+import { Save, Settings2, Loader2, CheckCircle2, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 export const BaselineConfig = () => {
@@ -12,6 +12,29 @@ export const BaselineConfig = () => {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [purgedMessage, setPurgedMessage] = useState<string | null>(null);
+
+  const handlePurgeData = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete ALL student test submissions, extracted evidence, and audit logs? This cannot be undone.")) {
+      return;
+    }
+    setPurging(true);
+    setPurgedMessage(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/clear-all-data`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      setPurgedMessage(data.message || "All testing data has been wiped clean.");
+      setTimeout(() => setPurgedMessage(null), 4000);
+    } catch (err) {
+      console.error("Error purging data:", err);
+      alert("Failed to clear testing data. Please check backend connection.");
+    } finally {
+      setPurging(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/baselines`)
@@ -166,6 +189,57 @@ export const BaselineConfig = () => {
             )}
           </button>
         </div>
+      </motion.div>
+
+      {/* Database Maintenance & Data Purge Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="card-3d p-8 border-rose-200/70 bg-gradient-to-br from-white via-rose-50/20 to-white"
+      >
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">
+                Danger Zone
+              </span>
+              <h3 className="text-lg font-black text-slate-900">Database Purge & Testing Data Cleanup</h3>
+            </div>
+            <p className="text-xs text-slate-500 max-w-xl">
+              Permanently wipe all student test submissions, extracted evidence, and audit logs. Use this to remove sample or test records and start fresh for live student cohorts.
+            </p>
+          </div>
+
+          <button
+            onClick={handlePurgeData}
+            disabled={purging}
+            className="btn-3d px-6 py-3 flex items-center gap-2 text-xs font-bold text-white bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 border-none shadow-[0_4px_14px_rgba(225,29,72,0.3)] whitespace-nowrap self-start sm:self-center"
+          >
+            {purging ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Purging Records...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                <span>Clear All Testing Data</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {purgedMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            {purgedMessage}
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
