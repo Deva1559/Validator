@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { UploadCloud, File, AlertCircle, CheckCircle2, Loader2, Sparkles, FolderUp, Check } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const [files, setFiles] = useState<File[]>([]);
@@ -23,7 +24,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
     });
 
     try {
-      const response = await fetch('http://localhost:8000/upload', {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
         body: formData,
       });

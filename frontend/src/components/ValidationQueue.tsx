@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ListChecks, Clock, CheckCircle2, AlertTriangle, RefreshCw, FileCode } from 'lucide-react';
+import { ListChecks, CheckCircle2, AlertTriangle, RefreshCw, FileCode } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const ValidationQueue = () => {
   const [data, setData] = useState<any[]>([]);
@@ -9,7 +10,7 @@ export const ValidationQueue = () => {
 
   const fetchData = () => {
     setRefreshing(true);
-    fetch('http://localhost:8000/leaderboard')
+    fetch(`${API_BASE_URL}/leaderboard`)
       .then(res => res.json())
       .then(data => setData(data))
       .catch(console.error)

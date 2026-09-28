@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, CheckCircle2, AlertTriangle, XCircle, Eye, Search, Sliders, RefreshCw, X, Award, Check, ShieldCheck, ArrowUpRight, Sparkles } from 'lucide-react';
 
+import { API_BASE_URL } from '../config';
+
 export const Leaderboard = () => {
   const [data, setData] = useState<any[]>([]);
   const [baselines, setBaselines] = useState<any>({
@@ -18,8 +20,8 @@ export const Leaderboard = () => {
   const fetchLeaderboard = async () => {
     try {
       const [boardRes, baseRes] = await Promise.all([
-        fetch('http://localhost:8000/leaderboard'),
-        fetch('http://localhost:8000/baselines')
+        fetch(`${API_BASE_URL}/leaderboard`),
+        fetch(`${API_BASE_URL}/baselines`)
       ]);
       const boardJson = await boardRes.json();
       const baseJson = await baseRes.json();
@@ -40,7 +42,7 @@ export const Leaderboard = () => {
   const handleReevaluate = async () => {
     setReevaluating(true);
     try {
-      await fetch('http://localhost:8000/baselines/re-evaluate', { method: 'POST' });
+      await fetch(`${API_BASE_URL}/baselines/re-evaluate`, { method: 'POST' });
       await fetchLeaderboard();
     } catch (e) {
       console.error("Re-evaluation error:", e);

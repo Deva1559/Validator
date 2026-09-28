@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, CheckCircle2, AlertTriangle, XCircle, Award, FileCode, Clock, Target, TrendingUp, X, Sparkles, UserCheck } from 'lucide-react';
+import { Search, CheckCircle2, AlertTriangle, FileCode, X } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const Students = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -10,7 +11,7 @@ export const Students = () => {
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/leaderboard')
+    fetch(`${API_BASE_URL}/leaderboard`)
       .then(res => res.json())
       .then(data => setStudents(data))
       .catch(console.error)

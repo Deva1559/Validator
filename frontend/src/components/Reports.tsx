@@ -7,6 +7,8 @@ import {
   ShieldAlert, CheckCheck, BarChart3
 } from 'lucide-react';
 
+import { API_BASE_URL } from '../config';
+
 export const Reports = () => {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,7 @@ export const Reports = () => {
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/leaderboard')
+    fetch(`${API_BASE_URL}/leaderboard`)
       .then(res => res.json())
       .then(data => setReports(data))
       .catch(console.error)
@@ -31,9 +33,9 @@ export const Reports = () => {
     setActiveTab('procedure');
     try {
       const [evRes, findRes, scoreRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/validations/${run.id}/evidence`),
-        fetch(`http://localhost:8000/api/validations/${run.id}/findings`),
-        fetch(`http://localhost:8000/api/validations/${run.id}/scoring`)
+        fetch(`${API_BASE_URL}/api/validations/${run.id}/evidence`),
+        fetch(`${API_BASE_URL}/api/validations/${run.id}/findings`),
+        fetch(`${API_BASE_URL}/api/validations/${run.id}/scoring`)
       ]);
       setEvidenceData(await evRes.json());
       setFindingsData(await findRes.json());

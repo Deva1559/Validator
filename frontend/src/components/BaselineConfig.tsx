@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Settings2, Loader2, CheckCircle2, Sliders, ShieldCheck } from 'lucide-react';
+import { Save, Settings2, Loader2, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const BaselineConfig = () => {
   const [config, setConfig] = useState({
@@ -13,7 +14,7 @@ export const BaselineConfig = () => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8000/baselines')
+    fetch(`${API_BASE_URL}/baselines`)
       .then(res => res.json())
       .then(data => {
         if (data) {
@@ -32,7 +33,7 @@ export const BaselineConfig = () => {
     setSaving(true);
     setSaved(false);
     try {
-      await fetch('http://localhost:8000/baselines', {
+      await fetch(`${API_BASE_URL}/baselines`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)

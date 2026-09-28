@@ -23,6 +23,8 @@ const StatCard = ({ title, value, icon: Icon, color, delay }: any) => (
   </motion.div>
 );
 
+import { API_BASE_URL } from '../config';
+
 export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => void }) => {
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,7 +33,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
   const fetchStats = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch('http://localhost:8000/stats');
+      const res = await fetch(`${API_BASE_URL}/stats`);
       const data = await res.json();
       setStats(data);
     } catch (err) {
