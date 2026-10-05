@@ -72,14 +72,14 @@ export const ValidationQueue = () => {
               data.map((item, idx) => (
                 <div key={item.id || idx} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-blue-300 hover:shadow-md transition-all gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-extrabold text-sm shadow-xs">
-                      #{idx + 1}
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-extrabold text-sm shadow-xs font-mono">
+                      #{item.run_number || (data.length - idx)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-slate-900 font-extrabold text-sm">{item.student_name}</h3>
                         <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
-                          Run #{item.id}
+                          Run #{item.run_number || (data.length - idx)}
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5 font-mono">

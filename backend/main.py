@@ -238,7 +238,29 @@ def clear_all_validation_data(
     db.query(AuditLog).delete()
     db.query(ValidationRun).delete()
     db.commit()
-    return {"message": "All student testing and validation records have been completely cleared."}
+
+    # Reset sequences so next runs start counting strictly from 1
+    try:
+        from sqlalchemy import text
+        # PostgreSQL auto-increment sequence reset
+        db.execute(text("ALTER SEQUENCE IF EXISTS validation_runs_id_seq RESTART WITH 1;"))
+        db.execute(text("ALTER SEQUENCE IF EXISTS validation_evidence_id_seq RESTART WITH 1;"))
+        db.execute(text("ALTER SEQUENCE IF EXISTS validation_findings_id_seq RESTART WITH 1;"))
+        db.execute(text("ALTER SEQUENCE IF EXISTS scoring_breakdown_id_seq RESTART WITH 1;"))
+        db.execute(text("ALTER SEQUENCE IF EXISTS audit_logs_id_seq RESTART WITH 1;"))
+        db.commit()
+    except Exception as e:
+        print("PG sequence reset notice:", e)
+
+    try:
+        from sqlalchemy import text
+        # SQLite sequence reset
+        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('validation_runs', 'validation_evidence', 'validation_findings', 'scoring_breakdown', 'audit_logs');"))
+        db.commit()
+    except Exception as e:
+        pass
+
+    return {"message": "All student testing and validation records have been completely cleared and run counter reset to 1."}
 
 @app.delete("/api/validations/{run_id}")
 def delete_single_validation_run(run_id: int, db: Session = Depends(get_db)):
@@ -665,7 +687,7 @@ def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optio
                     
     db.commit()
 
-def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines, db: Optional[Session] = None):
+def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines, db: Optional[Session] = None, run_number: Optional[int] = None):
     acc_val = None
     f1_val = None
     time_val = None
@@ -722,6 +744,7 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
     
     return {
         "id": r.id,
+        "run_number": run_number if run_number is not None else rank,
         "rank": rank,
         "student_name": r.student_name,
         "dept": getattr(r, 'department', None) or "AIML",
@@ -792,10 +815,21 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: bool = False, db
         query = db.query(ValidationRun)
         if roll_no and roll_no.strip():
             query = query.filter(ValidationRun.roll_no == roll_no.strip())
-        all_runs = query.order_by(ValidationRun.id.desc()).all()
+        
+        # Order chronologically ascending so the oldest run in current DB is 1, next is 2, etc.
+        chronological_runs = query.order_by(ValidationRun.id.asc()).all()
         if latest_only:
-            all_runs = get_latest_runs_by_student(all_runs)
-        return [format_run_data(r, i + 1, current_baselines, db) for i, r in enumerate(all_runs)]
+            chronological_runs = get_latest_runs_by_student(chronological_runs)
+        
+        # Assign sequential run_number counting strictly from 1
+        formatted = []
+        for i, r in enumerate(chronological_runs):
+            item = format_run_data(r, i + 1, current_baselines, db, run_number=i + 1)
+            formatted.append(item)
+            
+        # Return newest first for display in UI table
+        formatted.reverse()
+        return formatted
     except Exception as e:
         traceback.print_exc()
         return []
@@ -960,16 +994,53 @@ def get_stats(db: Session = Depends(get_db)):
             {"name": "90-100%", "students": sum(1 for a in acc_list if a >= 90), "fill": "#10B981"},
             {"name": "Unverified", "students": unverified_count, "fill": "#6B7280"}
         ]
+
+        # Deterministic Score distributions (user-requested primary visualizer)
+        score_list = [round(r.final_score, 1) if r.final_score is not None else 0.0 for r in runs]
+        avg_score = round(sum(score_list) / len(score_list), 1) if score_list else 0.0
+        target_score = 80.0 # Faculty benchmark target score
+
+        score_benchmark_dist = [
+            {"name": "≥ 80 (Target Met)", "students": sum(1 for s in score_list if s >= target_score), "fill": "#10B981"},
+            {"name": "< 80 (Below Target)", "students": sum(1 for s in score_list if 0 < s < target_score), "fill": "#F59E0B"},
+            {"name": "0 (Unscored)", "students": sum(1 for s in score_list if s == 0), "fill": "#64748B"}
+        ]
+
+        score_range_dist = [
+            {"name": "90-100", "students": sum(1 for s in score_list if s >= 90), "fill": "#10B981"},
+            {"name": "75-89", "students": sum(1 for s in score_list if 75 <= s < 90), "fill": "#3B82F6"},
+            {"name": "60-74", "students": sum(1 for s in score_list if 60 <= s < 75), "fill": "#F59E0B"},
+            {"name": "< 60", "students": sum(1 for s in score_list if 0 < s < 60), "fill": "#EF4444"},
+            {"name": "Unscored", "students": sum(1 for s in score_list if s == 0), "fill": "#64748B"}
+        ]
+
+        student_scores = [
+            {
+                "name": r.student_name,
+                "roll_no": getattr(r, 'roll_no', None) or '',
+                "use_case": getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition',
+                "score": round(r.final_score, 1) if r.final_score is not None else 0.0,
+                "is_verified": bool(r.final_score and r.final_score > 0),
+                "meets_target": (r.final_score or 0) >= target_score,
+                "target": target_score
+            }
+            for r in runs
+        ]
         
         return {
             "total_students": total_unique_students,
             "total_files_uploaded": total_files_uploaded,
             "validated": total_unique_students,
             "pending": 0,
+            "avg_score": avg_score,
+            "target_score": target_score,
             "avg_accuracy": avg_acc,
             "avg_macro_f1": avg_f1,
             "avg_training_time": avg_time,
             "validation_success_rate": round((success / total_unique_students) * 100, 1) if total_unique_students > 0 else 0,
+            "score_benchmark_distribution": score_benchmark_dist,
+            "score_range_distribution": score_range_dist,
+            "student_scores": student_scores,
             "accuracy_distribution": dist,
             "range_distribution": range_dist,
             "student_accuracies": student_records,

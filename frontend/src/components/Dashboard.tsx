@@ -236,16 +236,19 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
   const f1Progress = Math.min(100, (stats.avg_macro_f1 / targetF1) * 100);
   const timeProgress = stats.avg_training_time > 0 ? Math.min(100, (targetTime / stats.avg_training_time) * 100) : 100;
 
+  const targetScore = stats.target_score || 80;
+
   let activeChartData: any[] = [];
   if (chartView === 'BASELINE') {
-    activeChartData = stats.accuracy_distribution || [];
+    activeChartData = stats.score_benchmark_distribution || stats.accuracy_distribution || [];
   } else if (chartView === 'TIERS') {
-    activeChartData = stats.range_distribution || [];
+    activeChartData = stats.score_range_distribution || stats.range_distribution || [];
   } else {
-    activeChartData = (stats.student_accuracies || []).map((s: any) => ({
+    activeChartData = (stats.student_scores || stats.student_accuracies || []).map((s: any) => ({
       name: s.name.length > 12 ? s.name.slice(0, 10) + '..' : s.name,
-      accuracy: s.accuracy,
-      fill: !s.is_verified ? '#94A3B8' : s.meets_target ? '#10B981' : '#F59E0B'
+      score: s.score !== undefined ? s.score : s.accuracy,
+      is_verified: s.is_verified,
+      meets_target: s.meets_target
     }));
   }
 
@@ -313,27 +316,28 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
             delay={0.05} 
           />
           <MetricCard 
+            title="Deterministic Score" 
+            value={`${stats.avg_score || 0}`} 
+            subtitle={`Target: ≥ ${targetScore} (${(stats.avg_score || 0) >= targetScore ? 'Passing' : 'Below Target'})`}
+            icon={Target} 
+            color="bg-gradient-to-tr from-indigo-600 to-blue-600" 
+            badge="Faculty Benchmark ≥ 80"
+            delay={0.1} 
+          />
+          <MetricCard 
             title="Cohort Pass Rate" 
             value={`${stats.validation_success_rate}%`} 
             subtitle="Verified against baseline thresholds"
             icon={CheckCircle2} 
             color="bg-gradient-to-tr from-emerald-500 to-teal-600" 
-            delay={0.1} 
+            delay={0.15} 
           />
           <MetricCard 
             title="Cohort Average Accuracy" 
             value={`${stats.avg_accuracy}%`} 
             subtitle={`Target: ≥ ${targetAcc}% (${stats.avg_accuracy >= targetAcc ? 'Passing' : 'Below Target'})`}
-            icon={Target} 
-            color="bg-gradient-to-tr from-violet-600 to-purple-600" 
-            delay={0.15} 
-          />
-          <MetricCard 
-            title="Cohort Average Macro F1" 
-            value={`${stats.avg_macro_f1}%`} 
-            subtitle={`Target: ≥ ${targetF1}% (${stats.avg_macro_f1 >= targetF1 ? 'Passing' : 'Below Target'})`}
             icon={TrendingUp} 
-            color="bg-gradient-to-tr from-amber-500 to-orange-600" 
+            color="bg-gradient-to-tr from-violet-600 to-purple-600" 
             delay={0.2} 
           />
         </div>
@@ -521,9 +525,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
         </div>
       </div>
 
-      {/* Main 3D Visualizer: Accuracy Distribution */}
+      {/* Main Visualizer: Deterministic Score Distribution */}
       <div className="pt-4">
-        {/* Dynamic Accuracy Distribution Graph */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -535,10 +538,10 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-600" />
-                  Accuracy Distribution
+                  Deterministic Score Distribution
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                  Dynamic benchmark against Target: <span className="text-blue-600 font-bold">≥ {targetAcc}%</span>
+                  Dynamic benchmark against Target Score: <span className="text-blue-600 font-bold">≥ {targetScore} / 100</span>
                 </p>
               </div>
 
@@ -548,7 +551,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                   onClick={() => setChartView('BASELINE')}
                   className={`px-3 py-1.5 rounded-lg transition-all ${chartView === 'BASELINE' ? 'bg-white text-blue-600 shadow-[0_2px_4px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  Baseline
+                  Benchmark
                 </button>
                 <button
                   onClick={() => setChartView('TIERS')}
@@ -566,7 +569,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
             </div>
 
             <div className="h-72 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%" key={`chart-white-${chartView}-${targetAcc}`}>
+              <ResponsiveContainer width="100%" height="100%" key={`chart-score-${chartView}-${targetScore}`}>
                 {chartView === 'STUDENTS' ? (
                   <BarChart data={activeChartData} margin={{ top: 15, right: 10, left: -20, bottom: 25 }}>
                     <defs>
@@ -584,14 +587,14 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="name" stroke="#94A3B8" tick={{ fontSize: 11, fontWeight: 700, fill: '#64748B' }} />
-                    <YAxis stroke="#94A3B8" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} unit="%" />
+                    <YAxis stroke="#94A3B8" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} />
                     <Tooltip 
                       cursor={{ fill: 'rgba(59, 130, 246, 0.06)' }} 
                       contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', border: '1px solid #E2E8F0', borderRadius: '16px', boxShadow: '0 12px 28px -6px rgba(0,0,0,0.12)' }}
-                      formatter={(val: any) => [`${val}%`, 'Accuracy']}
+                      formatter={(val: any) => [`${val} / 100`, 'Deterministic Score']}
                     />
-                    <ReferenceLine y={targetAcc} stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 5" label={{ value: `Target: ${targetAcc}%`, fill: '#D97706', fontSize: 11, fontWeight: 700, position: 'top' }} />
-                    <Bar dataKey="accuracy" radius={[8, 8, 0, 0]}>
+                    <ReferenceLine y={targetScore} stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 5" label={{ value: `Target: ${targetScore}`, fill: '#D97706', fontSize: 11, fontWeight: 700, position: 'top' }} />
+                    <Bar dataKey="score" radius={[8, 8, 0, 0]}>
                       {activeChartData.map((entry: any, index: number) => {
                         const fillGrad = !entry.is_verified ? 'url(#studentGrayGrad)' : entry.meets_target ? 'url(#studentEmeraldGrad)' : 'url(#studentAmberGrad)';
                         return <Cell key={`cell-student-${index}`} fill={fillGrad} />;
