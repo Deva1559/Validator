@@ -14,11 +14,11 @@ import {
   HelpCircle,
   Building,
   Hash,
-  Sparkles,
   School,
   Search,
   BookOpen,
-  Layers
+  Layers,
+  X
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
@@ -705,9 +705,9 @@ export const Login: React.FC = () => {
                 </span>
                 <button
                   onClick={() => setShowHelp(false)}
-                  className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
               <p className="text-slate-600 leading-relaxed">
@@ -750,9 +750,9 @@ export const Login: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowRosterModal(false)}
-                    className="w-7 h-7 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-sm font-bold transition-colors"
+                    className="w-7 h-7 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors"
                   >
-                    ✕
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 

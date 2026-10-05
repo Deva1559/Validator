@@ -18,7 +18,6 @@ import {
   Target,
   TrendingUp,
   Clock,
-  Sparkles,
   RotateCcw
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';

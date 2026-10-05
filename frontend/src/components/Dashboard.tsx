@@ -13,7 +13,6 @@ import {
   ShieldCheck, 
   Zap,
   Activity,
-  Sparkles,
   Layers,
   FileText,
   Clock,
@@ -464,7 +463,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                   <MetricCard
                     title="Baseline Pass Rate"
                     value={`${uc.validation_success_rate || 0}%`}
-                    subtitle={`${uc.passed_count || 0} Passed • ${uc.review_count || 0} Need Review`}
+                    subtitle={`${subs} Submissions • Reviewed`}
                     icon={CheckCircle2}
                     color="bg-gradient-to-tr from-emerald-500 to-teal-600"
                     badge={uc.validation_success_rate >= 75 ? "Optimal Pass Rate" : "Standard Compliance"}

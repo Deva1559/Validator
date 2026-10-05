@@ -199,17 +199,23 @@ export const Students = () => {
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
                     <p className="text-xs font-semibold text-slate-400 uppercase">Accuracy</p>
                     <p className="text-base font-extrabold text-slate-900 mt-1">{selectedStudent.accuracy !== 'N/A' ? `${selectedStudent.accuracy}%` : 'N/A'}</p>
-                    <p className="text-[10px] font-bold text-slate-500 mt-1">{selectedStudent.passed_baselines?.accuracy ? '✓ Baseline Met' : '✗ Unmet'}</p>
+                    <p className={`text-[10px] font-bold mt-1 ${selectedStudent.passed_baselines?.accuracy ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {selectedStudent.passed_baselines?.accuracy ? 'Baseline Met' : 'Below Target'}
+                    </p>
                   </div>
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
                     <p className="text-xs font-semibold text-slate-400 uppercase">Macro F1</p>
                     <p className="text-base font-extrabold text-slate-900 mt-1">{selectedStudent.macro_f1 !== 'N/A' ? `${selectedStudent.macro_f1}%` : 'N/A'}</p>
-                    <p className="text-[10px] font-bold text-slate-500 mt-1">{selectedStudent.passed_baselines?.macro_f1 ? '✓ Baseline Met' : '✗ Unmet'}</p>
+                    <p className={`text-[10px] font-bold mt-1 ${selectedStudent.passed_baselines?.macro_f1 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {selectedStudent.passed_baselines?.macro_f1 ? 'Baseline Met' : 'Below Target'}
+                    </p>
                   </div>
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
                     <p className="text-xs font-semibold text-slate-400 uppercase">Time</p>
                     <p className="text-base font-extrabold text-slate-900 mt-1">{selectedStudent.training_time !== 'N/A' ? `${selectedStudent.training_time}s` : 'N/A'}</p>
-                    <p className="text-[10px] font-bold text-slate-500 mt-1">{selectedStudent.passed_baselines?.training_time ? '✓ Baseline Met' : '✗ Unmet'}</p>
+                    <p className={`text-[10px] font-bold mt-1 ${selectedStudent.passed_baselines?.training_time ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {selectedStudent.passed_baselines?.training_time ? 'Baseline Met' : 'Below Target'}
+                    </p>
                   </div>
                 </div>
 

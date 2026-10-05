@@ -190,7 +190,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                 >
                   {USE_CASE_OPTIONS.map((opt, idx) => (
                     <option key={opt.name} value={opt.name}>
-                      {idx + 1}. {opt.name} {user?.assigned_use_case === opt.name ? '⭐ (Your Assigned Track)' : ''}
+                      {idx + 1}. {opt.name} {user?.assigned_use_case === opt.name ? '(Assigned Track)' : ''}
                     </option>
                   ))}
                 </select>

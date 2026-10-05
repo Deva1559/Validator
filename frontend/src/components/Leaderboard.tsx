@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, CheckCircle2, AlertTriangle, XCircle, Eye, Search, Sliders, RefreshCw, X, Award, Check, ShieldCheck, ArrowUpRight, Sparkles } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, Search, Sliders, RefreshCw, X, Check, ShieldCheck, FileText } from 'lucide-react';
 
 import { API_BASE_URL } from '../config';
 
@@ -198,15 +198,15 @@ export const Leaderboard = () => {
                     key={row.id || idx} 
                     className="hover:bg-blue-50/40 transition-colors"
                   >
-                    {/* 3D Rank Badges */}
+                    {/* Numeric Rank Badges */}
                     <td className="p-4 pl-6">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-sm ${
-                        row.rank === 1 ? 'bg-gradient-to-tr from-amber-400 to-yellow-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.35),inset_0_1px_0_rgba(255,255,255,0.4)]' : 
-                        row.rank === 2 ? 'bg-gradient-to-tr from-slate-300 to-slate-400 text-white shadow-[0_4px_10px_rgba(148,163,184,0.35),inset_0_1px_0_rgba(255,255,255,0.4)]' :
-                        row.rank === 3 ? 'bg-gradient-to-tr from-amber-700 to-amber-600 text-white shadow-[0_4px_10px_rgba(180,83,9,0.35),inset_0_1px_0_rgba(255,255,255,0.4)]' : 
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black font-mono text-xs ${
+                        row.rank === 1 ? 'bg-slate-900 text-white shadow-xs' : 
+                        row.rank === 2 ? 'bg-slate-700 text-white shadow-xs' :
+                        row.rank === 3 ? 'bg-slate-500 text-white shadow-xs' : 
                         'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}>
-                        {row.rank === 1 ? <Trophy className="w-4 h-4 text-white" /> : row.rank}
+                        {row.rank}
                       </div>
                     </td>
 
@@ -489,7 +489,7 @@ export const Leaderboard = () => {
                 {/* Audit Findings */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                   <h4 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-blue-600" /> AI Findings & Baseline Notes
+                    <FileText className="w-4 h-4 text-blue-600" /> AI Findings & Baseline Notes
                   </h4>
                   <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap bg-white p-3.5 rounded-xl border border-slate-200 shadow-inner">
                     {selectedEntry.ai_feedback || "No findings recorded."}

@@ -4,7 +4,7 @@ import {
   UploadCloud, 
   ListChecks, 
   Users, 
-  Trophy, 
+  ListOrdered, 
   Sliders, 
   FileText, 
   LogOut, 
@@ -34,7 +34,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setAct
   return (
     <div className="w-64 bg-white/95 backdrop-blur-xl border-r border-slate-200/90 flex flex-col justify-between shadow-[4px_0_20px_rgba(15,23,42,0.03)] z-30">
       <div>
-        {/* 3D Brand Header */}
+        {/* Brand Header */}
         <div className="p-6 flex items-center space-x-3 border-b border-slate-100">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 shadow-[0_6px_16px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.4)] flex items-center justify-center text-white transform -rotate-3 hover:rotate-0 transition-transform">
             <Hexagon className="w-full h-full fill-white/20 stroke-white stroke-[2.5]" />
@@ -52,7 +52,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setAct
               <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} />
               <NavItem icon={ListChecks} label="Validation Queue" active={activeTab === 'Validation Queue'} onClick={() => setActiveTab('Validation Queue')} />
               <NavItem icon={Users} label="Student Directory" active={activeTab === 'Students'} onClick={() => setActiveTab('Students')} />
-              <NavItem icon={Trophy} label="Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
+              <NavItem icon={ListOrdered} label="Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
               <NavItem icon={Sliders} label="Baselines" active={activeTab === 'Baselines'} onClick={() => setActiveTab('Baselines')} />
               <NavItem icon={FileText} label="Reports" active={activeTab === 'Reports'} onClick={() => setActiveTab('Reports')} />
             </>
@@ -60,7 +60,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setAct
             <>
               <NavItem icon={LayoutDashboard} label="My Overview" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} />
               <NavItem icon={UploadCloud} label="Upload Notebook" active={activeTab === 'Upload Projects'} onClick={() => setActiveTab('Upload Projects')} />
-              <NavItem icon={Trophy} label="Class Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
+              <NavItem icon={ListOrdered} label="Class Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
               <NavItem icon={FileText} label="My Audit Report" active={activeTab === 'Reports'} onClick={() => setActiveTab('Reports')} />
               <NavItem icon={Users} label="Student Directory" active={activeTab === 'Students'} onClick={() => setActiveTab('Students')} />
             </>
