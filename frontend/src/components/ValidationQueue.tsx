@@ -10,9 +10,9 @@ export const ValidationQueue = () => {
 
   const fetchData = () => {
     setRefreshing(true);
-    fetch(`${API_BASE_URL}/leaderboard`)
+    fetch(`${API_BASE_URL}/api/validations/all`)
       .then(res => res.json())
-      .then(data => setData(data))
+      .then(data => setData(Array.isArray(data) ? data : []))
       .catch(console.error)
       .finally(() => {
         setLoading(false);

@@ -147,30 +147,30 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, color, badge, progress
     initial={{ opacity: 0, y: 15 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.35 }}
-    className="card-3d p-5 relative overflow-hidden group hover:border-blue-300 flex flex-col justify-between"
+    className="card-3d p-6 relative overflow-hidden group hover:border-blue-400/80 transition-all duration-300 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(37,99,235,0.08)] bg-white/95 backdrop-blur-sm"
   >
     <div className="flex items-start justify-between relative z-10">
-      <div className="space-y-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
-        <h4 className="text-2xl font-black text-slate-900 tracking-tight">{value}</h4>
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
+        <h4 className="text-3xl font-black text-slate-900 tracking-tight">{value}</h4>
         {subtitle && (
-          <p className="text-xs font-semibold text-slate-500 pt-0.5">{subtitle}</p>
+          <p className="text-xs font-semibold text-slate-500 pt-0.5 leading-relaxed">{subtitle}</p>
         )}
       </div>
-      <div className={`w-12 h-12 rounded-xl ${color} shadow-[0_6px_14px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.4)] flex items-center justify-center transform group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300 flex-shrink-0`}>
+      <div className={`w-12 h-12 rounded-2xl ${color} shadow-[0_8px_18px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.4)] flex items-center justify-center transform group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300 flex-shrink-0`}>
         <Icon className="w-6 h-6 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]" />
       </div>
     </div>
 
     {progress !== undefined && (
-      <div className="mt-4 pt-3 border-t border-slate-100">
-        <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 mb-1.5">
-          <span>Quota Fulfillment</span>
+      <div className="mt-5 pt-3.5 border-t border-slate-100/80">
+        <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-500 mb-1.5">
+          <span>Cohort Enrollment</span>
           <span className="text-blue-600 font-mono">{progress}%</span>
         </div>
-        <div className="well-3d h-2 p-0.5 overflow-hidden">
+        <div className="well-3d h-2.5 p-0.5 overflow-hidden rounded-full">
           <div 
-            className="h-full rounded bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-700" 
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 transition-all duration-700 shadow-sm" 
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>
@@ -178,14 +178,14 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, color, badge, progress
     )}
 
     {badge && (
-      <div className="mt-3">
-        <span className="inline-flex items-center text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+      <div className="mt-3.5">
+        <span className="inline-flex items-center text-[10px] font-black tracking-wide px-2.5 py-1 rounded-full bg-slate-100/90 text-slate-700 border border-slate-200 shadow-2xs">
           {badge}
         </span>
       </div>
     )}
 
-    <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-500" />
+    <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br from-blue-500/5 to-indigo-500/10 rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-500" />
   </motion.div>
 );
 
@@ -291,6 +291,47 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
         </div>
       </div>
 
+      {/* Graphical Live Cohort Pipeline Strip */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.02 }}
+        className="card-3d p-6 bg-gradient-to-r from-blue-50/70 via-white to-indigo-50/70 border border-blue-200/80 shadow-[0_6px_24px_rgba(37,99,235,0.05)] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6"
+      >
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+            </span>
+            <span className="text-xs font-black uppercase tracking-wider text-blue-900 font-mono">
+              Single-Student Deduplicated Mode Active
+            </span>
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+            130 Enrolled Cohort Architecture
+          </h3>
+          <p className="text-xs md:text-sm text-slate-500 font-medium">
+            Multiple uploads by the same student automatically update their single entry with their latest notebook • Full file revision history is preserved under Audit Reports
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs font-bold shrink-0">
+          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs text-center min-w-[110px]">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Unique Students</p>
+            <p className="text-xl font-black text-slate-900">{stats.total_students} <span className="text-xs text-slate-400 font-medium">/ 130</span></p>
+          </div>
+          <div className="bg-white px-4 py-3 rounded-2xl border border-blue-200 shadow-2xs text-center min-w-[110px]">
+            <p className="text-[10px] text-blue-600 uppercase tracking-wider font-extrabold">Notebook Files</p>
+            <p className="text-xl font-black text-blue-700">{stats.total_files_uploaded || stats.total_students}</p>
+          </div>
+          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs text-center min-w-[110px]">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Available Seats</p>
+            <p className="text-xl font-black text-slate-700">{Math.max(0, 130 - stats.total_students)}</p>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Cohort-Wide High Level Summary (4 Cards) */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
@@ -299,7 +340,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700">Combined Cohort Overview (All 7 Tracks)</h2>
           </div>
           <span className="text-xs font-bold text-slate-500 font-mono">
-            {stats.total_students} / 130 Students Submitted
+            {stats.total_students} / 130 Unique Students Submitted
           </span>
         </div>
 
@@ -351,7 +392,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
               </h2>
             </div>
             <p className="text-slate-500 text-sm font-medium mt-0.5">
-              Each usecase is allocated exactly 15 students with dedicated baseline benchmarks & 4 metric cards
+              130 students partitioned across 7 use cases with dedicated baseline criteria & 4 real-time tracking cards
             </p>
           </div>
 
@@ -570,33 +611,70 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
               <ResponsiveContainer width="100%" height="100%" key={`chart-white-${chartView}-${targetAcc}`}>
                 {chartView === 'STUDENTS' ? (
                   <BarChart data={activeChartData} margin={{ top: 15, right: 10, left: -20, bottom: 25 }}>
-                    <XAxis dataKey="name" stroke="#94A3B8" tick={{ fontSize: 11, fontWeight: 600, fill: '#64748B' }} />
+                    <defs>
+                      <linearGradient id="studentEmeraldGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.75} />
+                      </linearGradient>
+                      <linearGradient id="studentAmberGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#D97706" stopOpacity={0.75} />
+                      </linearGradient>
+                      <linearGradient id="studentGrayGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#94A3B8" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#64748B" stopOpacity={0.75} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="name" stroke="#94A3B8" tick={{ fontSize: 11, fontWeight: 700, fill: '#64748B' }} />
                     <YAxis stroke="#94A3B8" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} unit="%" />
                     <Tooltip 
-                      cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }} 
-                      contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.06)' }} 
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', border: '1px solid #E2E8F0', borderRadius: '16px', boxShadow: '0 12px 28px -6px rgba(0,0,0,0.12)' }}
                       formatter={(val: any) => [`${val}%`, 'Accuracy']}
                     />
                     <ReferenceLine y={targetAcc} stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 5" label={{ value: `Target: ${targetAcc}%`, fill: '#D97706', fontSize: 11, fontWeight: 700, position: 'top' }} />
-                    <Bar dataKey="accuracy" radius={[6, 6, 0, 0]}>
-                      {activeChartData.map((entry: any, index: number) => (
-                        <Cell key={`cell-student-${index}`} fill={entry.fill} />
-                      ))}
+                    <Bar dataKey="accuracy" radius={[8, 8, 0, 0]}>
+                      {activeChartData.map((entry: any, index: number) => {
+                        const fillGrad = !entry.is_verified ? 'url(#studentGrayGrad)' : entry.meets_target ? 'url(#studentEmeraldGrad)' : 'url(#studentAmberGrad)';
+                        return <Cell key={`cell-student-${index}`} fill={fillGrad} />;
+                      })}
                     </Bar>
                   </BarChart>
                 ) : (
                   <BarChart data={activeChartData} margin={{ top: 15, right: 10, left: -20, bottom: 25 }}>
-                    <XAxis dataKey="name" stroke="#94A3B8" tick={{ fontSize: 11, fontWeight: 600, fill: '#64748B' }} />
+                    <defs>
+                      <linearGradient id="barGradBlue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.8} />
+                      </linearGradient>
+                      <linearGradient id="barGradEmerald" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#047857" stopOpacity={0.8} />
+                      </linearGradient>
+                      <linearGradient id="barGradAmber" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#B45309" stopOpacity={0.8} />
+                      </linearGradient>
+                      <linearGradient id="barGradGray" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#94A3B8" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#64748B" stopOpacity={0.8} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="name" stroke="#94A3B8" tick={{ fontSize: 11, fontWeight: 700, fill: '#64748B' }} />
                     <YAxis stroke="#94A3B8" allowDecimals={false} tick={{ fontSize: 11, fill: '#64748B' }} />
                     <Tooltip 
-                      cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }} 
-                      contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.06)' }} 
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', border: '1px solid #E2E8F0', borderRadius: '16px', boxShadow: '0 12px 28px -6px rgba(0,0,0,0.12)' }}
                       formatter={(val: any) => [`${val} Students`, 'Count']}
                     />
-                    <Bar dataKey="students" radius={[6, 6, 0, 0]}>
-                      {activeChartData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill || '#3B82F6'} />
-                      ))}
+                    <Bar dataKey="students" radius={[8, 8, 0, 0]}>
+                      {activeChartData.map((entry: any, index: number) => {
+                        let fillVal = 'url(#barGradBlue)';
+                        if (entry.fill === '#10B981') fillVal = 'url(#barGradEmerald)';
+                        else if (entry.fill === '#F59E0B') fillVal = 'url(#barGradAmber)';
+                        else if (entry.fill === '#6B7280' || entry.fill === '#94A3B8') fillVal = 'url(#barGradGray)';
+                        return <Cell key={`cell-${index}`} fill={fillVal} />;
+                      })}
                     </Bar>
                   </BarChart>
                 )}

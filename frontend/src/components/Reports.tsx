@@ -8,11 +8,14 @@ import {
 } from 'lucide-react';
 
 import { API_BASE_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export const Reports = () => {
+  const { user, isStudent } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'MINE' | 'ALL'>(isStudent ? 'MINE' : 'ALL');
   const [selectedRun, setSelectedRun] = useState<any | null>(null);
   const [evidenceData, setEvidenceData] = useState<any[]>([]);
   const [findingsData, setFindingsData] = useState<any[]>([]);
@@ -21,9 +24,9 @@ export const Reports = () => {
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/leaderboard`)
+    fetch(`${API_BASE_URL}/api/reports`)
       .then(res => res.json())
-      .then(data => setReports(data))
+      .then(data => setReports(Array.isArray(data) ? data : []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -78,10 +81,30 @@ export const Reports = () => {
     downloadAnchor.remove();
   };
 
-  const filteredReports = reports.filter(r => 
-    r.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.filename.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Group by student key to mark which run is latest vs historical
+  const latestRunIds = new Set<number>();
+  const seenStudents = new Set<string>();
+  reports.forEach(r => {
+    const key = ((r.roll_no || '') + '_' + (r.student_name || '')).trim().toUpperCase();
+    if (!seenStudents.has(key)) {
+      seenStudents.add(key);
+      latestRunIds.add(r.id);
+    }
+  });
+
+  const filteredReports = reports.filter(r => {
+    if (isStudent && filterMode === 'MINE' && user?.roll_no) {
+      if ((r.roll_no || '').trim().toUpperCase() !== user.roll_no.trim().toUpperCase()) {
+        return false;
+      }
+    }
+    const q = searchQuery.toLowerCase();
+    return (
+      r.student_name?.toLowerCase().includes(q) ||
+      r.filename?.toLowerCase().includes(q) ||
+      (r.roll_no && r.roll_no.toLowerCase().includes(q))
+    );
+  });
 
   // Workflow evidence mapping
   const cleaningEvidence = evidenceData.find(e => e.metric_name?.includes("ML-002"));
@@ -105,9 +128,12 @@ export const Reports = () => {
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
               Audit Transparency & Evidence Engine
             </span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+              All Uploaded Versions Preserved
+            </span>
           </div>
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Validation Reports</h1>
-          <p className="text-slate-500 text-base font-medium">Explainable evidence, dataset hygiene verification, and leak-free training audit trail</p>
+          <p className="text-slate-500 text-base font-medium">Explainable evidence, historical iteration audits, and dataset hygiene verification</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -120,21 +146,44 @@ export const Reports = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="card-3d p-4 flex items-center gap-3">
-        <Search className="w-5 h-5 text-slate-400 ml-2" />
-        <input 
-          type="text"
-          placeholder="Filter by student name or notebook filename..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
-        />
-        {searchQuery && (
-          <button onClick={() => setSearchQuery('')} className="text-xs font-bold text-slate-400 hover:text-slate-600 px-2 py-1">
-            Clear
-          </button>
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        {isStudent && (
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold shrink-0">
+            <button
+              onClick={() => setFilterMode('MINE')}
+              className={`px-3.5 py-2 rounded-xl transition-all ${
+                filterMode === 'MINE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              My Uploads ({reports.filter(r => (r.roll_no || '').trim().toUpperCase() === user?.roll_no?.trim().toUpperCase()).length})
+            </button>
+            <button
+              onClick={() => setFilterMode('ALL')}
+              className={`px-3.5 py-2 rounded-xl transition-all ${
+                filterMode === 'ALL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              All Cohort Files ({reports.length})
+            </button>
+          </div>
         )}
+
+        <div className="card-3d p-3 flex-1 flex items-center gap-3">
+          <Search className="w-5 h-5 text-slate-400 ml-2" />
+          <input 
+            type="text"
+            placeholder="Filter by student name, roll number, or notebook filename..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-xs font-bold text-slate-400 hover:text-slate-600 px-2 py-1">
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grid of Report Cards */}
@@ -149,41 +198,60 @@ export const Reports = () => {
             No matching validation reports found.
           </div>
         ) : (
-          filteredReports.map((report, idx) => (
-            <motion.div
-              key={report.id || idx}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.04 }}
-              className="card-3d p-6 flex flex-col justify-between group hover:border-blue-400"
-            >
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate max-w-[190px]">
-                        {report.student_name}
-                      </h3>
-                      {report.roll_no && (
-                        <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
-                          {report.roll_no}
-                        </span>
+          filteredReports.map((report, idx) => {
+            const isLatest = latestRunIds.has(report.id);
+            return (
+              <motion.div
+                key={report.id || idx}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.04 }}
+                className="card-3d p-6 flex flex-col justify-between group hover:border-blue-400 relative overflow-hidden"
+              >
+                {/* Top Subtle Status Stripe */}
+                <div className={`absolute top-0 left-0 right-0 h-1 ${isLatest ? 'bg-blue-600' : 'bg-slate-300'}`} />
+
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate max-w-[190px]">
+                          {report.student_name}
+                        </h3>
+                        {report.roll_no && (
+                          <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
+                            {report.roll_no}
+                          </span>
+                        )}
+                        {isLatest ? (
+                          <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                            Latest Upload
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                            Historical Attempt
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 truncate max-w-[210px] font-mono mt-1 font-medium">
+                        {report.filename}
+                      </p>
+                      {report.created_at && (
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          Uploaded: {report.created_at}
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 truncate max-w-[210px] font-mono mt-0.5">
-                      {report.dept && `${report.dept} (${report.sec || 'A'}) • `}{report.filename}
-                    </p>
+                    {report.status === "VERIFIED" ? (
+                      <span className="flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Pass
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" /> Review
+                      </span>
+                    )}
                   </div>
-                  {report.status === "VERIFIED" ? (
-                    <span className="flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Pass
-                    </span>
-                  ) : (
-                    <span className="flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
-                      <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" /> Review
-                    </span>
-                  )}
-                </div>
                 
                 <div className="grid grid-cols-2 gap-3 my-5">
                   <div className="well-3d p-3 text-center">
@@ -219,8 +287,8 @@ export const Reports = () => {
                 <ShieldCheck className="w-4 h-4" /> View Evidence Audit
               </button>
             </motion.div>
-          ))
-        )}
+          );
+        }))}
       </div>
 
       {/* 3D Slide-Over Evidence Drawer */}

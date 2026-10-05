@@ -758,12 +758,45 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
         "ai_feedback": ai_feedback
     }
 
+def get_student_key(r: ValidationRun) -> str:
+    roll = getattr(r, 'roll_no', None)
+    if roll and roll.strip():
+        return roll.strip().upper()
+    name = getattr(r, 'student_name', None)
+    if name and name.strip():
+        return name.strip().lower()
+    return f"run_{r.id}"
+
+def get_latest_runs_by_student(runs: List[ValidationRun]) -> List[ValidationRun]:
+    """Filters a list of runs to retain only the most recently submitted file per student."""
+    latest_by_student = {}
+    for r in sorted(runs, key=lambda x: (x.created_at or datetime.min, x.id)):
+        key = get_student_key(r)
+        latest_by_student[key] = r
+    return list(latest_by_student.values())
+
 @app.get("/leaderboard")
 def get_leaderboard(db: Session = Depends(get_db)):
+    """Leaderboard displays only the latest uploaded file per student."""
     try:
         runs = db.query(ValidationRun).all()
-        sorted_runs = sorted(runs, key=lambda x: x.final_score or 0, reverse=True)
-        return [format_run_data(r, i + 1, current_baselines) for i, r in enumerate(sorted_runs)]
+        latest_runs = get_latest_runs_by_student(runs)
+        sorted_runs = sorted(latest_runs, key=lambda x: x.final_score or 0, reverse=True)
+        return [format_run_data(r, i + 1, current_baselines, db) for i, r in enumerate(sorted_runs)]
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.get("/api/reports")
+@app.get("/api/validations/all")
+def get_all_reports(roll_no: Optional[str] = None, db: Session = Depends(get_db)):
+    """Returns ALL uploaded files/runs for audit reports, preserving full submission history."""
+    try:
+        query = db.query(ValidationRun)
+        if roll_no and roll_no.strip():
+            query = query.filter(ValidationRun.roll_no == roll_no.strip())
+        all_runs = query.order_by(ValidationRun.id.desc()).all()
+        return [format_run_data(r, i + 1, current_baselines, db) for i, r in enumerate(all_runs)]
     except Exception as e:
         traceback.print_exc()
         return []
@@ -799,8 +832,11 @@ def get_validation_scoring(run_id: int, db: Session = Depends(get_db)):
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
     try:
-        runs = db.query(ValidationRun).all()
-        total = len(runs)
+        all_runs = db.query(ValidationRun).all()
+        # In Dashboard, multiple files by one student are counted as only 1 user submission (their latest)
+        runs = get_latest_runs_by_student(all_runs)
+        total_unique_students = len(runs)
+        total_files_uploaded = len(all_runs)
         use_case_configs = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
         
         target_acc = current_baselines.accuracy
@@ -849,6 +885,7 @@ def get_stats(db: Session = Depends(get_db)):
                 
             student_records.append({
                 "name": r.student_name,
+                "roll_no": getattr(r, 'roll_no', None) or '',
                 "use_case": getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition',
                 "accuracy": student_acc if student_acc is not None else 0.0,
                 "is_verified": student_acc is not None,
@@ -861,7 +898,7 @@ def get_stats(db: Session = Depends(get_db)):
         avg_time = round(sum(time_list) / len(time_list), 1) if time_list else 0.0
         success = sum(1 for r in runs if r.overall_status == "VERIFIED")
         
-        # Calculate stats individually for each of the 7 use cases
+        # Calculate stats individually for each of the 7 use cases based on unique latest student runs
         use_case_stats = []
         for uc in use_case_configs:
             uc_runs = [r for r in runs if (getattr(r, 'use_case', None) or 'Traffic Sign Recognition') == uc.name]
@@ -926,13 +963,14 @@ def get_stats(db: Session = Depends(get_db)):
         ]
         
         return {
-            "total_students": total,
-            "validated": total,
+            "total_students": total_unique_students,
+            "total_files_uploaded": total_files_uploaded,
+            "validated": total_unique_students,
             "pending": 0,
             "avg_accuracy": avg_acc,
             "avg_macro_f1": avg_f1,
             "avg_training_time": avg_time,
-            "validation_success_rate": round((success / total) * 100, 1) if total > 0 else 0,
+            "validation_success_rate": round((success / total_unique_students) * 100, 1) if total_unique_students > 0 else 0,
             "accuracy_distribution": dist,
             "range_distribution": range_dist,
             "student_accuracies": student_records,
