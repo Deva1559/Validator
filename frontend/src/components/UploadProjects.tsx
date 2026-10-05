@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UploadCloud, File, AlertCircle, Loader2, FolderUp, Check, User, GraduationCap, Hash, Layers } from 'lucide-react';
+import { UploadCloud, File, AlertCircle, Loader2, FolderUp, Check, User, GraduationCap, Hash, Layers, Lock } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
+  const { user, isStudent } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Student candidate metadata
-  const [name, setName] = useState('');
-  const [dept, setDept] = useState('');
-  const [sec, setSec] = useState('');
-  const [rollNo, setRollNo] = useState('');
+  const [name, setName] = useState(user?.name || '');
+  const [dept, setDept] = useState(user?.department || 'AIML');
+  const [sec, setSec] = useState(user?.section || 'A');
+  const [rollNo, setRollNo] = useState(user?.roll_no || '');
+
+  useEffect(() => {
+    if (isStudent && user) {
+      if (user.name) setName(user.name);
+      if (user.department) setDept(user.department);
+      if (user.section) setSec(user.section);
+      if (user.roll_no) setRollNo(user.roll_no);
+    }
+  }, [user, isStudent]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {

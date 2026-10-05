@@ -1,14 +1,52 @@
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
-DATABASE_URL = "sqlite:///./validation_evidence.db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./validation_evidence.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+try:
+    connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+    with engine.connect() as conn:
+        pass
+    print(f"Database connected: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'SQLite'}")
+except Exception as e:
+    print(f"Database connection note ({e}). Falling back to local SQLite.")
+    DATABASE_URL = "sqlite:///./validation_evidence.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+class StudentUser(Base):
+    __tablename__ = "student_users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    roll_no = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    department = Column(String, default="AIML", nullable=True)
+    section = Column(String, default="A", nullable=True)
+    pin = Column(String, default="1234", nullable=True)
+    email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class FacultyUser(Base):
+    __tablename__ = "faculty_users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    department = Column(String, default="AIML", nullable=True)
+    password = Column(String, nullable=False)
+    title = Column(String, default="Faculty ML Evaluator", nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class ValidationRun(Base):
     __tablename__ = "validation_runs"
@@ -112,3 +150,4 @@ def auto_migrate():
             print("Auto-migration note:", e)
 
 auto_migrate()
+

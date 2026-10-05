@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog
+from database import SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog, StudentUser, FacultyUser
 from evidence import analyze_notebook_evidence
 
 app = FastAPI(title="ModelValidator AI API")
@@ -93,6 +93,239 @@ def clear_all_validation_data(
     db.commit()
     return {"message": "All student testing and validation records have been completely cleared."}
 
+class LoginRequest(BaseModel):
+    role: str # "FACULTY" or "STUDENT"
+    identifier: str # Key/email for faculty; Roll No or Email for student
+    password: Optional[str] = ""
+
+class RegisterStudentRequest(BaseModel):
+    roll_no: str
+    name: str
+    department: Optional[str] = "AIML"
+    section: Optional[str] = "A"
+    pin: Optional[str] = "1234"
+    email: Optional[str] = None
+
+class RegisterFacultyRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    department: Optional[str] = "AIML"
+    title: Optional[str] = "Faculty ML Evaluator"
+
+@app.post("/api/auth/login")
+def login_user(req: LoginRequest, db: Session = Depends(get_db)):
+    role = req.role.strip().upper()
+    identifier = req.identifier.strip()
+    password = (req.password or "").strip()
+
+    if role == "FACULTY":
+        # 1. Check institutional key
+        faculty_key = password if password else identifier
+        if verify_faculty_key(faculty_key):
+            return {
+                "success": True,
+                "user": {
+                    "role": "FACULTY",
+                    "name": "Dr. Karunakaran",
+                    "email": "karunakaran@aiml.edu",
+                    "department": "AIML",
+                    "title": "Faculty ML Evaluator"
+                },
+                "token": "faculty_session_token"
+            }
+        
+        # 2. Check registered faculty in database (Supabase)
+        fac = db.query(FacultyUser).filter(
+            (FacultyUser.email == identifier.lower()) | 
+            (FacultyUser.name.ilike(identifier))
+        ).first()
+        if fac and (fac.password == password or verify_faculty_key(password)):
+            return {
+                "success": True,
+                "user": {
+                    "role": "FACULTY",
+                    "name": fac.name,
+                    "email": fac.email,
+                    "department": fac.department or "AIML",
+                    "title": fac.title or "Faculty ML Evaluator"
+                },
+                "token": f"faculty_token_{fac.id}"
+            }
+
+        raise HTTPException(status_code=401, detail="Invalid Faculty Security Key or Credentials.")
+
+    elif role == "STUDENT":
+        # Search by roll_no (case-insensitive) or email
+        clean_roll = identifier.upper()
+        student = db.query(StudentUser).filter(
+            (StudentUser.roll_no == clean_roll) | 
+            (StudentUser.email == identifier.lower())
+        ).first()
+
+        if not student:
+            # Check if there is an existing validation run with this roll_no
+            run_match = db.query(ValidationRun).filter(
+                (ValidationRun.roll_no == clean_roll) | 
+                (ValidationRun.student_name.ilike(f"%{identifier}%"))
+            ).first()
+            if run_match:
+                student = StudentUser(
+                    roll_no=run_match.roll_no or clean_roll,
+                    name=run_match.student_name,
+                    department=run_match.department or "AIML",
+                    section=run_match.section or "A",
+                    pin="1234"
+                )
+                db.add(student)
+                db.commit()
+                db.refresh(student)
+            else:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Roll number '{identifier}' is not registered yet. Please click 'Create Student Account' to register."
+                )
+
+        # PIN check: accept student PIN or allow initial login
+        if password:
+            valid_pins = {student.pin or "1234", "1234", student.roll_no.upper(), student.roll_no.lower()}
+            if password not in valid_pins:
+                raise HTTPException(status_code=401, detail="Invalid Student PIN/Password. Please check your credentials.")
+
+        return {
+            "success": True,
+            "user": {
+                "role": "STUDENT",
+                "name": student.name,
+                "roll_no": student.roll_no,
+                "department": student.department or "AIML",
+                "section": student.section or "A",
+                "email": student.email or f"{student.roll_no.lower()}@aiml.edu"
+            },
+            "token": f"student_token_{student.roll_no}"
+        }
+    
+    raise HTTPException(status_code=400, detail="Invalid role specified. Must be 'FACULTY' or 'STUDENT'.")
+
+@app.get("/api/auth/students-roster")
+def get_students_roster(db: Session = Depends(get_db)):
+    """Returns directory of registered students."""
+    students = db.query(StudentUser).order_by(StudentUser.roll_no).all()
+    return [
+        {
+            "roll_no": s.roll_no,
+            "name": s.name,
+            "department": s.department,
+            "section": s.section,
+            "email": s.email
+        }
+        for s in students
+    ]
+
+@app.post("/api/auth/register-student")
+def register_student(req: RegisterStudentRequest, db: Session = Depends(get_db)):
+    clean_roll = req.roll_no.strip().upper()
+    existing = db.query(StudentUser).filter(StudentUser.roll_no == clean_roll).first()
+    if existing:
+        existing.name = req.name.strip()
+        if req.department: existing.department = req.department.strip()
+        if req.section: existing.section = req.section.strip()
+        if req.pin: existing.pin = req.pin.strip()
+        db.commit()
+        db.refresh(existing)
+        return {"success": True, "message": "Student profile updated.", "user": {
+            "role": "STUDENT",
+            "name": existing.name,
+            "roll_no": existing.roll_no,
+            "department": existing.department,
+            "section": existing.section
+        }}
+    
+    new_student = StudentUser(
+        roll_no=clean_roll,
+        name=req.name.strip(),
+        department=req.department.strip() if req.department else "AIML",
+        section=req.section.strip() if req.section else "A",
+        pin=req.pin.strip() if req.pin else "1234",
+        email=req.email.strip() if req.email else f"{clean_roll.lower()}@aiml.edu"
+    )
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    return {"success": True, "message": "Student registered successfully.", "user": {
+        "role": "STUDENT",
+        "name": new_student.name,
+        "roll_no": new_student.roll_no,
+        "department": new_student.department,
+        "section": new_student.section
+    }}
+
+@app.post("/api/auth/register-faculty")
+def register_faculty(req: RegisterFacultyRequest, db: Session = Depends(get_db)):
+    clean_email = req.email.strip().lower()
+    existing = db.query(FacultyUser).filter(FacultyUser.email == clean_email).first()
+    if existing:
+        existing.name = req.name.strip()
+        if req.department: existing.department = req.department.strip()
+        if req.password: existing.password = req.password.strip()
+        if req.title: existing.title = req.title.strip()
+        db.commit()
+        db.refresh(existing)
+        return {"success": True, "message": "Faculty account updated.", "user": {
+            "role": "FACULTY", "name": existing.name, "email": existing.email, "department": existing.department, "title": existing.title
+        }}
+    
+    new_fac = FacultyUser(
+        name=req.name.strip(),
+        email=clean_email,
+        department=req.department.strip() if req.department else "AIML",
+        password=req.password.strip(),
+        title=req.title.strip() if req.title else "Faculty ML Evaluator"
+    )
+    db.add(new_fac)
+    db.commit()
+    db.refresh(new_fac)
+    return {"success": True, "message": "Faculty account registered in database.", "user": {
+        "role": "FACULTY", "name": new_fac.name, "email": new_fac.email, "department": new_fac.department, "title": new_fac.title
+    }}
+
+@app.get("/api/students/{roll_no}/profile")
+def get_student_profile(roll_no: str, db: Session = Depends(get_db)):
+    clean_roll = roll_no.strip().upper()
+    student = db.query(StudentUser).filter(StudentUser.roll_no == clean_roll).first()
+    runs = db.query(ValidationRun).filter(ValidationRun.roll_no == clean_roll).order_by(ValidationRun.created_at.desc()).all()
+    
+    all_runs = db.query(ValidationRun).all()
+    sorted_runs = sorted(all_runs, key=lambda x: x.final_score or 0, reverse=True)
+    rank = None
+    best_score = 0
+    for idx, r in enumerate(sorted_runs):
+        if r.roll_no == clean_roll:
+            if rank is None:
+                rank = idx + 1
+                best_score = r.final_score or 0
+    
+    return {
+        "student": {
+            "roll_no": student.roll_no if student else clean_roll,
+            "name": student.name if student else (runs[0].student_name if runs else "Student"),
+            "department": student.department if student else (runs[0].department if runs else "AIML"),
+            "section": student.section if student else (runs[0].section if runs else "A"),
+        },
+        "submissions_count": len(runs),
+        "rank": rank,
+        "best_score": best_score,
+        "submissions": [
+            {
+                "id": r.id,
+                "filename": r.filename,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "final_score": r.final_score,
+                "overall_status": r.overall_status
+            }
+            for r in runs
+        ]
+    }
 
 @app.post("/upload")
 async def upload_notebooks(
