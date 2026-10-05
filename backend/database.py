@@ -189,13 +189,42 @@ def auto_migrate():
             if existing_s_cols and "assigned_use_case" not in existing_s_cols:
                 conn.execute(text("ALTER TABLE student_users ADD COLUMN assigned_use_case VARCHAR"))
                 conn.commit()
+
+            result_ev = conn.execute(text("PRAGMA table_info(validation_evidence)"))
+            existing_ev_cols = [row[1] for row in result_ev.fetchall()]
+            if existing_ev_cols:
+                for col, col_t in [
+                    ("evidence_type", "VARCHAR"),
+                    ("source_cell", "INTEGER"),
+                    ("unit", "VARCHAR"),
+                    ("detection_method", "VARCHAR"),
+                    ("relevant_code", "TEXT"),
+                    ("relevant_output", "TEXT")
+                ]:
+                    if col not in existing_ev_cols:
+                        conn.execute(text(f"ALTER TABLE validation_evidence ADD COLUMN {col} {col_t}"))
+                conn.commit()
         except Exception:
             pass
 
-        # PostgreSQL migrations
+        # PostgreSQL migrations (adds missing columns in Supabase automatically)
         try:
+            # validation_runs
+            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS department VARCHAR DEFAULT 'AIML'"))
+            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS section VARCHAR DEFAULT 'A'"))
+            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS roll_no VARCHAR DEFAULT '24AM001'"))
             conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
+            
+            # student_users
             conn.execute(text("ALTER TABLE student_users ADD COLUMN IF NOT EXISTS assigned_use_case VARCHAR"))
+            
+            # validation_evidence
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR"))
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS source_cell INTEGER"))
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS unit VARCHAR"))
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS detection_method VARCHAR"))
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS relevant_code TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS relevant_output TEXT"))
             conn.commit()
         except Exception:
             pass

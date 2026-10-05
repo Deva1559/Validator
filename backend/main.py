@@ -496,53 +496,61 @@ async def upload_notebooks(
     results = []
     
     for file in files:
-        content = await file.read()
-        final_name = name.strip() if name and name.strip() else file.filename.split(".")[0].replace("_", " ").title()
-        final_dept = dept.strip() if dept and dept.strip() else "AIML"
-        final_sec = sec.strip() if sec and sec.strip() else "A"
-        final_roll = roll_no.strip() if roll_no and roll_no.strip() else "24AM001"
-        final_use_case = use_case.strip() if use_case and use_case.strip() else "Traffic Sign Recognition"
-        
-        # Resolve use case specific baseline
-        uc_config = db.query(UseCaseConfig).filter(UseCaseConfig.name == final_use_case).first()
-        baseline_for_run = {
-            "accuracy": uc_config.accuracy if uc_config else current_baselines.accuracy,
-            "macro_f1": uc_config.macro_f1 if uc_config else current_baselines.macro_f1,
-            "training_time": uc_config.training_time if uc_config else current_baselines.training_time,
-            "time_comparison": uc_config.time_comparison if uc_config else current_baselines.time_comparison,
-        }
-        
-        # Create DB record with student metadata and chosen use case
-        run = ValidationRun(
-            student_name=final_name, 
-            department=final_dept,
-            section=final_sec,
-            roll_no=final_roll,
-            use_case=final_use_case,
-            filename=file.filename, 
-            batch_id=batch_id
-        )
-        db.add(run)
-        db.commit()
-        db.refresh(run)
-        
-        # Audit Log
-        db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Track: {final_use_case}"))
-        db.commit()
-        
-        # Run Evidence Analysis against specific use case baseline
-        analyze_notebook_evidence(db, run.id, file.filename, content, baseline_for_run)
-        
-        results.append({
-            "id": run.id, 
-            "filename": file.filename, 
-            "student_name": final_name,
-            "department": final_dept,
-            "section": final_sec,
-            "roll_no": final_roll,
-            "use_case": final_use_case,
-            "status": "PROCESSING"
-        })
+        try:
+            content = await file.read()
+            final_name = name.strip() if name and name.strip() else file.filename.split(".")[0].replace("_", " ").title()
+            final_dept = dept.strip() if dept and dept.strip() else "AIML"
+            final_sec = sec.strip() if sec and sec.strip() else "A"
+            final_roll = roll_no.strip() if roll_no and roll_no.strip() else "24AM001"
+            final_use_case = use_case.strip() if use_case and use_case.strip() else "Traffic Sign Recognition"
+            
+            # Resolve use case specific baseline
+            uc_config = db.query(UseCaseConfig).filter(UseCaseConfig.name == final_use_case).first()
+            baseline_for_run = {
+                "accuracy": uc_config.accuracy if uc_config else current_baselines.accuracy,
+                "macro_f1": uc_config.macro_f1 if uc_config else current_baselines.macro_f1,
+                "training_time": uc_config.training_time if uc_config else current_baselines.training_time,
+                "time_comparison": uc_config.time_comparison if uc_config else current_baselines.time_comparison,
+            }
+            
+            # Create DB record with student metadata and chosen use case
+            run = ValidationRun(
+                student_name=final_name, 
+                department=final_dept,
+                section=final_sec,
+                roll_no=final_roll,
+                use_case=final_use_case,
+                filename=file.filename, 
+                batch_id=batch_id
+            )
+            db.add(run)
+            db.commit()
+            db.refresh(run)
+            
+            # Audit Log
+            db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Track: {final_use_case}"))
+            db.commit()
+            
+            # Run Evidence Analysis against specific use case baseline
+            analyze_notebook_evidence(db, run.id, file.filename, content, baseline_for_run)
+            
+            results.append({
+                "id": run.id, 
+                "filename": file.filename, 
+                "student_name": final_name,
+                "department": final_dept,
+                "section": final_sec,
+                "roll_no": final_roll,
+                "use_case": final_use_case,
+                "status": "PROCESSING"
+            })
+        except Exception as e:
+            traceback.print_exc()
+            db.rollback()
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Notebook verification failed on '{file.filename}': {str(e)}"
+            )
     
     return {"uploaded": len(files), "results": results}
 

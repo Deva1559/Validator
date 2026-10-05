@@ -67,16 +67,28 @@ CREATE INDEX IF NOT EXISTS idx_validation_runs_batch_id ON public.validation_run
 CREATE TABLE IF NOT EXISTS public.validation_evidence (
     id SERIAL PRIMARY KEY,
     run_id INTEGER REFERENCES public.validation_runs(id) ON DELETE CASCADE,
-    step_name VARCHAR(255),
     metric_name VARCHAR(255),
+    evidence_type VARCHAR(100),
     extracted_value TEXT,
-    cell_index INTEGER,
+    unit VARCHAR(50),
+    source_cell INTEGER,
+    detection_method VARCHAR(255),
+    relevant_code TEXT,
+    relevant_output TEXT,
     confidence_score DOUBLE PRECISION,
     verification_status VARCHAR(50),
     baseline_value VARCHAR(100),
     difference_from_baseline VARCHAR(100),
-    baseline_status VARCHAR(50)
+    baseline_status VARCHAR(255)
 );
+
+-- Ensure all columns exist if table was already created
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR(100);
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS source_cell INTEGER;
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS unit VARCHAR(50);
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS detection_method VARCHAR(255);
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS relevant_code TEXT;
+ALTER TABLE public.validation_evidence ADD COLUMN IF NOT EXISTS relevant_output TEXT;
 
 -- 6. Validation Findings Table
 CREATE TABLE IF NOT EXISTS public.validation_findings (
