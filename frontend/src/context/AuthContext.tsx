@@ -9,6 +9,7 @@ export interface User {
   section?: string;
   email?: string;
   title?: string;
+  assigned_use_case?: string;
 }
 
 interface AuthContextType {

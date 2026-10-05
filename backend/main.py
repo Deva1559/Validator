@@ -303,41 +303,46 @@ def login_user(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid Faculty Security Key or Credentials.")
 
     elif role == "STUDENT":
-        # Search by roll_no (case-insensitive) or email
-        clean_roll = identifier.upper()
+        # Search by student Name (Username) or Register Number
+        clean_id = identifier.strip()
+        clean_upper = clean_id.upper()
+        
+        # 1. Direct name (case-insensitive) or roll_no match
         student = db.query(StudentUser).filter(
-            (StudentUser.roll_no == clean_roll) | 
-            (StudentUser.email == identifier.lower())
+            (StudentUser.name.ilike(clean_id)) | 
+            (StudentUser.roll_no == clean_upper) | 
+            (StudentUser.email == clean_id.lower())
         ).first()
 
+        # 2. Normalized name search (ignoring punctuation/multiple spaces)
         if not student:
-            # Check if there is an existing validation run with this roll_no
-            run_match = db.query(ValidationRun).filter(
-                (ValidationRun.roll_no == clean_roll) | 
-                (ValidationRun.student_name.ilike(f"%{identifier}%"))
-            ).first()
-            if run_match:
-                student = StudentUser(
-                    roll_no=run_match.roll_no or clean_roll,
-                    name=run_match.student_name,
-                    department=run_match.department or "AIML",
-                    section=run_match.section or "A",
-                    pin="1234"
-                )
-                db.add(student)
-                db.commit()
-                db.refresh(student)
-            else:
-                raise HTTPException(
-                    status_code=404, 
-                    detail=f"Roll number '{identifier}' is not registered yet. Please click 'Create Student Account' to register."
-                )
+            norm_query = "".join(clean_id.lower().split()).replace(".", "")
+            all_students = db.query(StudentUser).all()
+            for s in all_students:
+                norm_name = "".join(s.name.lower().split()).replace(".", "")
+                if norm_query == norm_name or norm_query in norm_name or norm_name in norm_query:
+                    student = s
+                    break
 
-        # PIN check: accept student PIN or allow initial login
-        if password:
-            valid_pins = {student.pin or "1234", "1234", student.roll_no.upper(), student.roll_no.lower()}
-            if password not in valid_pins:
-                raise HTTPException(status_code=401, detail="Invalid Student PIN/Password. Please check your credentials.")
+        if not student:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Student username '{identifier}' not found in the class roster. Please enter your full name as registered (e.g. G S ABINIVAS)."
+            )
+
+        # Password check: student's university register number
+        clean_pw = password.strip()
+        valid_passwords = {
+            student.roll_no.strip(),
+            student.roll_no.strip().upper(),
+            (student.pin or "").strip(),
+            "1234" # emergency fallback
+        }
+        if not clean_pw or clean_pw not in valid_passwords:
+            raise HTTPException(
+                status_code=401, 
+                detail="Incorrect password. Please enter your university register number as password (e.g. 722824148001)."
+            )
 
         return {
             "success": True,
@@ -347,7 +352,8 @@ def login_user(req: LoginRequest, db: Session = Depends(get_db)):
                 "roll_no": student.roll_no,
                 "department": student.department or "AIML",
                 "section": student.section or "A",
-                "email": student.email or f"{student.roll_no.lower()}@aiml.edu"
+                "assigned_use_case": student.assigned_use_case,
+                "email": student.email or f"{student.roll_no.lower()}@institution.edu"
             },
             "token": f"student_token_{student.roll_no}"
         }
@@ -364,7 +370,8 @@ def get_students_roster(db: Session = Depends(get_db)):
             "name": s.name,
             "department": s.department,
             "section": s.section,
-            "email": s.email
+            "email": s.email,
+            "assigned_use_case": s.assigned_use_case
         }
         for s in students
     ]

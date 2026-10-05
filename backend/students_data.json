@@ -1,0 +1,1172 @@
+[
+  {
+    "roll_no": "722824148001",
+    "name": "G S ABINIVAS",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148001",
+    "email": "722824148001@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148002",
+    "name": "V C ADITH",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148002",
+    "email": "722824148002@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148003",
+    "name": "M K AJAY SHASHTIVEL",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148003",
+    "email": "722824148003@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148004",
+    "name": "AKASH B",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148004",
+    "email": "722824148004@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148005",
+    "name": "AKHILESH M P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148005",
+    "email": "722824148005@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148006",
+    "name": "AKSHATHA J",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148006",
+    "email": "722824148006@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148007",
+    "name": "AMIRTHAVARSHINI S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148007",
+    "email": "722824148007@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148008",
+    "name": "ARULSELVI P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148008",
+    "email": "722824148008@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148009",
+    "name": "ASHWITA S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148009",
+    "email": "722824148009@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148010",
+    "name": "BALAGUGAN S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148010",
+    "email": "722824148010@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148011",
+    "name": "BARATHPRIYAN R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148011",
+    "email": "722824148011@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148012",
+    "name": "DEEPA SAHANA G",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148012",
+    "email": "722824148012@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148013",
+    "name": "DEEPAK P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148013",
+    "email": "722824148013@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148014",
+    "name": "DEEPAK R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148014",
+    "email": "722824148014@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148015",
+    "name": "DEEPIKA D",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148015",
+    "email": "722824148015@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148016",
+    "name": "DEVIPRIYA K",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148016",
+    "email": "722824148016@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148017",
+    "name": "DHAARANI M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148017",
+    "email": "722824148017@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148018",
+    "name": "DHAKSHATHA S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148018",
+    "email": "722824148018@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148019",
+    "name": "DHARANISH R P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148019",
+    "email": "722824148019@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148020",
+    "name": "DHARSAN S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148020",
+    "email": "722824148020@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148021",
+    "name": "DHARUNKUMAR S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148021",
+    "email": "722824148021@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148022",
+    "name": "DIVYANANDH A S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148022",
+    "email": "722824148022@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148023",
+    "name": "EETHAMUKKALA RAMADAS PAVAN",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148023",
+    "email": "722824148023@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148024",
+    "name": "ENOCH JASON J",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148024",
+    "email": "722824148024@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148025",
+    "name": "S FAZMINA",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148025",
+    "email": "722824148025@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148026",
+    "name": "GOKUL M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148026",
+    "email": "722824148026@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148027",
+    "name": "GOKULANAND M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148027",
+    "email": "722824148027@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148028",
+    "name": "GOKULAVASAN B",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148028",
+    "email": "722824148028@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148029",
+    "name": "HARIHARAN A",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148029",
+    "email": "722824148029@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148030",
+    "name": "HARIHARAN R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148030",
+    "email": "722824148030@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148031",
+    "name": "HARIHARAN V S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148031",
+    "email": "722824148031@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148032",
+    "name": "HARINI D",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148032",
+    "email": "722824148032@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148033",
+    "name": "HARISH K",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148033",
+    "email": "722824148033@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148034",
+    "name": "INDHUJA V",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148034",
+    "email": "722824148034@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148035",
+    "name": "JANANI M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148035",
+    "email": "722824148035@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148036",
+    "name": "G JANANISHREE",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148036",
+    "email": "722824148036@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148037",
+    "name": "JANAVI MIRUNDHA S A",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148037",
+    "email": "722824148037@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148038",
+    "name": "JAYASHREE M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148038",
+    "email": "722824148038@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148039",
+    "name": "JOTHINI V",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148039",
+    "email": "722824148039@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148040",
+    "name": "JOVIA A J",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148040",
+    "email": "722824148040@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148041",
+    "name": "KAMALASHRINITHI P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148041",
+    "email": "722824148041@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148042",
+    "name": "KANIMOZHI R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148042",
+    "email": "722824148042@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148043",
+    "name": "KANISHKAR B",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148043",
+    "email": "722824148043@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148044",
+    "name": "KARTHICK RAJA T M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148044",
+    "email": "722824148044@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148045",
+    "name": "KARTHIKBALAJI S V",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148045",
+    "email": "722824148045@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148046",
+    "name": "KAVINDRA E M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148046",
+    "email": "722824148046@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148047",
+    "name": "KEERTHIKUMAR K",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148047",
+    "email": "722824148047@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148048",
+    "name": "KIRIT P S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148048",
+    "email": "722824148048@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148049",
+    "name": "KISHORE V R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148049",
+    "email": "722824148049@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148050",
+    "name": "KUBOJA DANIEL MABUBA",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148050",
+    "email": "722824148050@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148051",
+    "name": "LAKSHAN KUMAR P L",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148051",
+    "email": "722824148051@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148052",
+    "name": "LALITKISHORE R V",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148052",
+    "email": "722824148052@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148053",
+    "name": "LIDIYA SHAINY A",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148053",
+    "email": "722824148053@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148054",
+    "name": "LINA G",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148054",
+    "email": "722824148054@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148055",
+    "name": "LOGIN S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148055",
+    "email": "722824148055@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148056",
+    "name": "MAHA KESHAV P",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148056",
+    "email": "722824148056@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148057",
+    "name": "MANJUNATH S M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148057",
+    "email": "722824148057@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148058",
+    "name": "MANOJKUMAR R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148058",
+    "email": "722824148058@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148059",
+    "name": "MATHIVATHANI M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148059",
+    "email": "722824148059@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148060",
+    "name": "MITHILAN K",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148060",
+    "email": "722824148060@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148061",
+    "name": "MOHAMED FAHIM JAMAL M",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148061",
+    "email": "722824148061@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148062",
+    "name": "MONHIT RAJU L",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148062",
+    "email": "722824148062@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148063",
+    "name": "NADISH R",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148063",
+    "email": "722824148063@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148064",
+    "name": "NILAVAN A",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148064",
+    "email": "722824148064@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148303",
+    "name": "RAGUL S",
+    "department": "AIML",
+    "section": "A",
+    "pin": "722824148303",
+    "email": "722824148303@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148065",
+    "name": "NITHIN JOSHUA J",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148065",
+    "email": "722824148065@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148066",
+    "name": "NITIN A K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148066",
+    "email": "722824148066@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148067",
+    "name": "NIVASH M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148067",
+    "email": "722824148067@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148068",
+    "name": "NIVETHIKA M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148068",
+    "email": "722824148068@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148069",
+    "name": "POOJALAKSHMI PRATHAA D",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148069",
+    "email": "722824148069@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148070",
+    "name": "PRANAV SHANKAR D",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148070",
+    "email": "722824148070@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148071",
+    "name": "PRAVEEN RAJU K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148071",
+    "email": "722824148071@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148072",
+    "name": "PRIYAVARSHINI V",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148072",
+    "email": "722824148072@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148073",
+    "name": "PROMOTH THANGARAJ",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148073",
+    "email": "722824148073@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148074",
+    "name": "RAJA R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148074",
+    "email": "722824148074@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148075",
+    "name": "RAJAPRIYAN R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148075",
+    "email": "722824148075@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148076",
+    "name": "REEGAN FERDINAND K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148076",
+    "email": "722824148076@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148077",
+    "name": "RITHANYA S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148077",
+    "email": "722824148077@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148078",
+    "name": "RITHISH BARATH S R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148078",
+    "email": "722824148078@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148079",
+    "name": "ROHITH K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148079",
+    "email": "722824148079@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148080",
+    "name": "RUPASHREE V M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148080",
+    "email": "722824148080@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148081",
+    "name": "SABARINATHAN M B",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148081",
+    "email": "722824148081@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148082",
+    "name": "SAHANAA K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148082",
+    "email": "722824148082@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148083",
+    "name": "SAKTHI LAKSHMI L V",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148083",
+    "email": "722824148083@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148084",
+    "name": "SAMPHINEHAS S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148084",
+    "email": "722824148084@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148085",
+    "name": "SANGHAMITHRA P",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148085",
+    "email": "722824148085@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148086",
+    "name": "SANJAY S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148086",
+    "email": "722824148086@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148087",
+    "name": "SANJIT M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148087",
+    "email": "722824148087@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148088",
+    "name": "SANJITH SENTHIL KUMAR",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148088",
+    "email": "722824148088@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148089",
+    "name": "SANTHU MOHAMMED M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148089",
+    "email": "722824148089@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148090",
+    "name": "SARVESH D",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148090",
+    "email": "722824148090@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148091",
+    "name": "SHABHARIVAASUN K R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148091",
+    "email": "722824148091@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148092",
+    "name": "SHAMITHA S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148092",
+    "email": "722824148092@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148093",
+    "name": "SHANMUGA PRIYA S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148093",
+    "email": "722824148093@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148094",
+    "name": "SHRI ASHWANTH A",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148094",
+    "email": "722824148094@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148095",
+    "name": "SHUBHAHARINI S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148095",
+    "email": "722824148095@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148096",
+    "name": "SHUDHARSHAN P",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148096",
+    "email": "722824148096@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148097",
+    "name": "SHUNMUGARAJ R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148097",
+    "email": "722824148097@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148098",
+    "name": "SINDHUJA S S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148098",
+    "email": "722824148098@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148099",
+    "name": "SOWMIGHA K A",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148099",
+    "email": "722824148099@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148100",
+    "name": "SRI RAM S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148100",
+    "email": "722824148100@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148101",
+    "name": "SRI SANTHOSH K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148101",
+    "email": "722824148101@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148102",
+    "name": "SRINISANTH R J",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148102",
+    "email": "722824148102@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148103",
+    "name": "SRINIVASAN R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148103",
+    "email": "722824148103@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148104",
+    "name": "SRUTHI R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148104",
+    "email": "722824148104@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148105",
+    "name": "SURYA PRABHA P",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148105",
+    "email": "722824148105@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148106",
+    "name": "SURYA R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148106",
+    "email": "722824148106@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148107",
+    "name": "SWETHA P",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148107",
+    "email": "722824148107@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148108",
+    "name": "TEJASVIN U",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148108",
+    "email": "722824148108@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148109",
+    "name": "THANVIKA B",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148109",
+    "email": "722824148109@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148110",
+    "name": "THICKISH S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148110",
+    "email": "722824148110@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148111",
+    "name": "VANDHANA G M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148111",
+    "email": "722824148111@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148112",
+    "name": "VARUN PRASATH M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148112",
+    "email": "722824148112@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148113",
+    "name": "VENKATESH B",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148113",
+    "email": "722824148113@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148114",
+    "name": "VINISHRAGHAV K E",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148114",
+    "email": "722824148114@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148115",
+    "name": "VINITH KUMAR D",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148115",
+    "email": "722824148115@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148116",
+    "name": "VISHAL M K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148116",
+    "email": "722824148116@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148117",
+    "name": "VISHNU R M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148117",
+    "email": "722824148117@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148118",
+    "name": "VISHNUPRIYAN P R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148118",
+    "email": "722824148118@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148119",
+    "name": "VISHVA KUMAR B",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148119",
+    "email": "722824148119@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148120",
+    "name": "VISWAJOTHI R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148120",
+    "email": "722824148120@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148121",
+    "name": "VIVEK K K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148121",
+    "email": "722824148121@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148122",
+    "name": "YADESH D",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148122",
+    "email": "722824148122@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  },
+  {
+    "roll_no": "722824148123",
+    "name": "YOGESHWARAN K",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148123",
+    "email": "722824148123@institution.edu",
+    "assigned_use_case": "Image Generation with GANs"
+  },
+  {
+    "roll_no": "722824148124",
+    "name": "YOGITA R",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148124",
+    "email": "722824148124@institution.edu",
+    "assigned_use_case": "Image Captioning"
+  },
+  {
+    "roll_no": "722824148125",
+    "name": "ZIDANE ASHIK",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148125",
+    "email": "722824148125@institution.edu",
+    "assigned_use_case": "Pneumonia Detection from Chest X-Rays"
+  },
+  {
+    "roll_no": "722824148301",
+    "name": "HARISUDHARSHAN N",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148301",
+    "email": "722824148301@institution.edu",
+    "assigned_use_case": "Traffic Sign Recognition"
+  },
+  {
+    "roll_no": "722824148302",
+    "name": "MOHAMED NUKMAAN NIHAL S",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148302",
+    "email": "722824148302@institution.edu",
+    "assigned_use_case": "Crop Leaf Disease Classification"
+  },
+  {
+    "roll_no": "722824148304",
+    "name": "ROHITH M",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148304",
+    "email": "722824148304@institution.edu",
+    "assigned_use_case": "Face Mask Detection"
+  },
+  {
+    "roll_no": "722824148305",
+    "name": "SRILEKA B",
+    "department": "AIML",
+    "section": "B",
+    "pin": "722824148305",
+    "email": "722824148305@institution.edu",
+    "assigned_use_case": "Pet Image Segmentation"
+  }
+]

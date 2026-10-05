@@ -33,6 +33,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
       if (user.department) setDept(user.department);
       if (user.section) setSec(user.section);
       if (user.roll_no) setRollNo(user.roll_no);
+      if (user.assigned_use_case) setUseCase(user.assigned_use_case);
     }
   }, [user, isStudent]);
 
@@ -166,15 +167,21 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                 </div>
               </div>
 
-              {/* Use Case Track Selector (15 Students per Track) */}
+              {/* Use Case Track Selector (Chained 1 to 7 across 130 students) */}
               <div className="pt-3 border-t border-slate-200/60 space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-blue-600" /> Machine Learning Use Case Track
                   </label>
-                  <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
-                    15 Students Quota
-                  </span>
+                  {user?.assigned_use_case ? (
+                    <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Pre-Assigned by Roll Chain
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                      18-19 Students Quota
+                    </span>
+                  )}
                 </div>
                 <select
                   value={useCase}
@@ -183,12 +190,14 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                 >
                   {USE_CASE_OPTIONS.map((opt, idx) => (
                     <option key={opt.name} value={opt.name}>
-                      {idx + 1}. {opt.name} — {opt.desc} (Quota: 15)
+                      {idx + 1}. {opt.name} {user?.assigned_use_case === opt.name ? '⭐ (Your Assigned Track)' : ''}
                     </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Select which of the 7 official assignment tracks this notebook submission addresses.
+                  {user?.assigned_use_case 
+                    ? `Your roll number is chained to Track: "${user.assigned_use_case}". Ensure your notebook matches this track.`
+                    : "Select which of the 7 official assignment tracks this notebook submission addresses."}
                 </p>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
@@ -54,6 +55,7 @@ class StudentUser(Base):
     section = Column(String, default="A", nullable=True)
     pin = Column(String, default="1234", nullable=True)
     email = Column(String, nullable=True)
+    assigned_use_case = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class FacultyUser(Base):
@@ -167,6 +169,7 @@ Base.metadata.create_all(bind=engine)
 # Auto-migrate schema
 def auto_migrate():
     with engine.connect() as conn:
+        # SQLite migrations
         try:
             result = conn.execute(text("PRAGMA table_info(validation_runs)"))
             existing_cols = [row[1] for row in result.fetchall()]
@@ -180,13 +183,22 @@ def auto_migrate():
                 if "use_case" not in existing_cols:
                     conn.execute(text("ALTER TABLE validation_runs ADD COLUMN use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
                 conn.commit()
-        except Exception as e:
-            # PostgreSQL migration check
-            try:
-                conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
+
+            result_s = conn.execute(text("PRAGMA table_info(student_users)"))
+            existing_s_cols = [row[1] for row in result_s.fetchall()]
+            if existing_s_cols and "assigned_use_case" not in existing_s_cols:
+                conn.execute(text("ALTER TABLE student_users ADD COLUMN assigned_use_case VARCHAR"))
                 conn.commit()
-            except Exception:
-                pass
+        except Exception:
+            pass
+
+        # PostgreSQL migrations
+        try:
+            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
+            conn.execute(text("ALTER TABLE student_users ADD COLUMN IF NOT EXISTS assigned_use_case VARCHAR"))
+            conn.commit()
+        except Exception:
+            pass
 
 auto_migrate()
 
@@ -197,7 +209,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 85.0,
         "training_time": 45.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 19,
         "description": "Autonomous vision classification of road signs and regulatory symbols."
     },
     {
@@ -206,7 +218,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 82.0,
         "training_time": 60.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 19,
         "description": "Agricultural AI diagnostic pipeline for early foliar pathology identification."
     },
     {
@@ -215,7 +227,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 88.0,
         "training_time": 30.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 19,
         "description": "Real-time facial occlusion audit for public health compliance verification."
     },
     {
@@ -224,7 +236,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 78.0,
         "training_time": 90.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 19,
         "description": "Pixel-level semantic contour mask extraction for animal morphology."
     },
     {
@@ -233,7 +245,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 75.0,
         "training_time": 120.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 18,
         "description": "Generative adversarial distribution synthesis with fidelity metrics."
     },
     {
@@ -242,7 +254,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 78.0,
         "training_time": 100.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 18,
         "description": "Multimodal vision-language synthesis bridging visual features with natural language."
     },
     {
@@ -251,7 +263,7 @@ DEFAULT_USE_CASES = [
         "macro_f1": 90.0,
         "training_time": 50.0,
         "time_comparison": "lower",
-        "student_quota": 15,
+        "student_quota": 18,
         "description": "High-stakes clinical radiographic screening with stringent false-negative penalties."
     }
 ]
@@ -259,21 +271,22 @@ DEFAULT_USE_CASES = [
 def seed_default_use_cases():
     db = SessionLocal()
     try:
-        count = db.query(UseCaseConfig).count()
-        if count < len(DEFAULT_USE_CASES):
-            existing_names = {u.name for u in db.query(UseCaseConfig.name).all()}
-            for uc in DEFAULT_USE_CASES:
-                if uc["name"] not in existing_names:
-                    db.add(UseCaseConfig(
-                        name=uc["name"],
-                        accuracy=uc["accuracy"],
-                        macro_f1=uc["macro_f1"],
-                        training_time=uc["training_time"],
-                        time_comparison=uc["time_comparison"],
-                        student_quota=uc["student_quota"],
-                        description=uc["description"]
-                    ))
-            db.commit()
+        existing_ucs = {u.name: u for u in db.query(UseCaseConfig).all()}
+        for uc in DEFAULT_USE_CASES:
+            if uc["name"] not in existing_ucs:
+                db.add(UseCaseConfig(
+                    name=uc["name"],
+                    accuracy=uc["accuracy"],
+                    macro_f1=uc["macro_f1"],
+                    training_time=uc["training_time"],
+                    time_comparison=uc["time_comparison"],
+                    student_quota=uc["student_quota"],
+                    description=uc["description"]
+                ))
+            else:
+                # Update quota to 19/18 for 130 students distribution
+                existing_ucs[uc["name"]].student_quota = uc["student_quota"]
+        db.commit()
     except Exception as e:
         print("Note on seeding use cases:", e)
         db.rollback()
@@ -281,4 +294,55 @@ def seed_default_use_cases():
         db.close()
 
 seed_default_use_cases()
+
+def seed_130_students():
+    """Seeds or updates all 130 students from students_data.json with username=name, password=reg_no, and assigned_use_case chained 1..7."""
+    db = SessionLocal()
+    try:
+        base_dir = os.path.dirname(__file__)
+        json_path = os.path.join(base_dir, "students_data.json")
+        if not os.path.exists(json_path):
+            json_path = os.path.join(os.path.dirname(base_dir), "backend", "students_data.json")
+        if not os.path.exists(json_path):
+            json_path = "students_data.json"
+
+        if os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+                students_list = json.load(f)
+
+            existing_by_roll = {s.roll_no: s for s in db.query(StudentUser).all()}
+            new_cnt = 0
+            upd_cnt = 0
+            for item in students_list:
+                roll = item["roll_no"]
+                if roll in existing_by_roll:
+                    st = existing_by_roll[roll]
+                    st.name = item["name"]
+                    st.pin = item["pin"] # password is register number
+                    st.department = item.get("department", "AIML")
+                    st.section = item.get("section", "A")
+                    st.assigned_use_case = item.get("assigned_use_case")
+                    st.email = item.get("email")
+                    upd_cnt += 1
+                else:
+                    st = StudentUser(
+                        roll_no=roll,
+                        name=item["name"],
+                        department=item.get("department", "AIML"),
+                        section=item.get("section", "A"),
+                        pin=item["pin"], # password is register number
+                        email=item.get("email"),
+                        assigned_use_case=item.get("assigned_use_case")
+                    )
+                    db.add(st)
+                    new_cnt += 1
+            db.commit()
+            print(f"130 Students roster seeded: {new_cnt} created, {upd_cnt} updated.")
+    except Exception as e:
+        print("Note on seeding 130 students roster:", e)
+        db.rollback()
+    finally:
+        db.close()
+
+seed_130_students()
 
