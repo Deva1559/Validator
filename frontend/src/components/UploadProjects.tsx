@@ -15,6 +15,17 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
   const [dept, setDept] = useState(user?.department || 'AIML');
   const [sec, setSec] = useState(user?.section || 'A');
   const [rollNo, setRollNo] = useState(user?.roll_no || '');
+  const [useCase, setUseCase] = useState('Traffic Sign Recognition');
+
+  const USE_CASE_OPTIONS = [
+    { name: "Traffic Sign Recognition", desc: "Autonomous vision classification of road signs" },
+    { name: "Crop Leaf Disease Classification", desc: "Foliar pathology identification" },
+    { name: "Face Mask Detection", desc: "Facial occlusion audit for public health compliance" },
+    { name: "Pet Image Segmentation", desc: "Pixel-level semantic contour masks" },
+    { name: "Image Generation with GANs", desc: "Adversarial distribution synthesis" },
+    { name: "Image Captioning", desc: "Multimodal vision-language synthesis" },
+    { name: "Pneumonia Detection from Chest X-Rays", desc: "Clinical radiographic screening" },
+  ];
 
   useEffect(() => {
     if (isStudent && user) {
@@ -44,6 +55,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
     if (dept.trim()) formData.append('dept', dept.trim());
     if (sec.trim()) formData.append('sec', sec.trim());
     if (rollNo.trim()) formData.append('roll_no', rollNo.trim());
+    formData.append('use_case', useCase);
 
     try {
       const response = await fetch(`${API_BASE_URL}/upload`, {
@@ -152,6 +164,32 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                     className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-xs transition-colors font-mono"
                   />
                 </div>
+              </div>
+
+              {/* Use Case Track Selector (15 Students per Track) */}
+              <div className="pt-3 border-t border-slate-200/60 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" /> Machine Learning Use Case Track
+                  </label>
+                  <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                    15 Students Quota
+                  </span>
+                </div>
+                <select
+                  value={useCase}
+                  onChange={(e) => setUseCase(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 shadow-xs transition-colors"
+                >
+                  {USE_CASE_OPTIONS.map((opt, idx) => (
+                    <option key={opt.name} value={opt.name}>
+                      {idx + 1}. {opt.name} — {opt.desc} (Quota: 15)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Select which of the 7 official assignment tracks this notebook submission addresses.
+                </p>
               </div>
             </div>
 

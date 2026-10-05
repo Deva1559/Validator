@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog, StudentUser, FacultyUser
+from database import SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog, StudentUser, FacultyUser, UseCaseConfig
 from evidence import analyze_notebook_evidence
 
 app = FastAPI(title="ModelValidator AI API")
@@ -335,6 +335,7 @@ async def upload_notebooks(
     dept: str = Form(None),
     sec: str = Form(None),
     roll_no: str = Form(None),
+    use_case: str = Form(None),
     db: Session = Depends(get_db)
 ):
     batch_id = "BATCH_CURRENT"
@@ -346,13 +347,24 @@ async def upload_notebooks(
         final_dept = dept.strip() if dept and dept.strip() else "AIML"
         final_sec = sec.strip() if sec and sec.strip() else "A"
         final_roll = roll_no.strip() if roll_no and roll_no.strip() else "24AM001"
+        final_use_case = use_case.strip() if use_case and use_case.strip() else "Traffic Sign Recognition"
         
-        # Create DB record with student metadata
+        # Resolve use case specific baseline
+        uc_config = db.query(UseCaseConfig).filter(UseCaseConfig.name == final_use_case).first()
+        baseline_for_run = {
+            "accuracy": uc_config.accuracy if uc_config else current_baselines.accuracy,
+            "macro_f1": uc_config.macro_f1 if uc_config else current_baselines.macro_f1,
+            "training_time": uc_config.training_time if uc_config else current_baselines.training_time,
+            "time_comparison": uc_config.time_comparison if uc_config else current_baselines.time_comparison,
+        }
+        
+        # Create DB record with student metadata and chosen use case
         run = ValidationRun(
             student_name=final_name, 
             department=final_dept,
             section=final_sec,
             roll_no=final_roll,
+            use_case=final_use_case,
             filename=file.filename, 
             batch_id=batch_id
         )
@@ -361,11 +373,11 @@ async def upload_notebooks(
         db.refresh(run)
         
         # Audit Log
-        db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Dept: {final_dept} | Sec: {final_sec}"))
+        db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Track: {final_use_case}"))
         db.commit()
         
-        # Run Evidence Analysis
-        analyze_notebook_evidence(db, run.id, file.filename, content, current_baselines.dict())
+        # Run Evidence Analysis against specific use case baseline
+        analyze_notebook_evidence(db, run.id, file.filename, content, baseline_for_run)
         
         results.append({
             "id": run.id, 
@@ -373,13 +385,17 @@ async def upload_notebooks(
             "student_name": final_name,
             "department": final_dept,
             "section": final_sec,
-            "roll_no": final_roll
+            "roll_no": final_roll,
+            "use_case": final_use_case,
+            "status": "PROCESSING"
         })
-            
+    
     return {"uploaded": len(files), "results": results}
 
-def recalculate_all_runs_against_baselines(db: Session, baselines: BaselineConfig):
+def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optional[BaselineConfig] = None):
     runs = db.query(ValidationRun).all()
+    uc_configs = {u.name: u for u in db.query(UseCaseConfig).all()}
+    
     for r in runs:
         acc_val = None
         f1_val = None
@@ -402,14 +418,19 @@ def recalculate_all_runs_against_baselines(db: Session, baselines: BaselineConfi
                 except Exception:
                     pass
         
-        target_acc = baselines.accuracy
-        target_f1 = baselines.macro_f1
-        target_time = baselines.training_time
+        # Resolve target baseline for the run's specific use case
+        uc_name = getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition'
+        uc = uc_configs.get(uc_name)
+        
+        target_acc = uc.accuracy if uc else (default_baselines.accuracy if default_baselines else current_baselines.accuracy)
+        target_f1 = uc.macro_f1 if uc else (default_baselines.macro_f1 if default_baselines else current_baselines.macro_f1)
+        target_time = uc.training_time if uc else (default_baselines.training_time if default_baselines else current_baselines.training_time)
+        time_comparison = uc.time_comparison if uc else (default_baselines.time_comparison if default_baselines else current_baselines.time_comparison)
         
         # Base weight: Accuracy 40%, Macro F1 40%, Training Time 20%
         passed_acc = acc_val is not None and acc_val >= target_acc
         passed_f1 = f1_val is not None and f1_val >= target_f1
-        passed_time = time_val is not None and (time_val <= target_time if baselines.time_comparison == "lower" else time_val >= target_time)
+        passed_time = time_val is not None and (time_val <= target_time if time_comparison == "lower" else time_val >= target_time)
 
         if acc_val is not None:
             raw_acc = min(40.0, (acc_val / 100.0) * 40.0)
@@ -425,7 +446,7 @@ def recalculate_all_runs_against_baselines(db: Session, baselines: BaselineConfi
 
         time_contrib = 0.0
         if time_val is not None and time_val > 0:
-            if baselines.time_comparison == "lower":
+            if time_comparison == "lower":
                 ratio = min(20.0, (target_time / time_val) * 20.0)
             else:
                 ratio = min(20.0, (time_val / max(0.1, target_time)) * 20.0)
@@ -462,11 +483,11 @@ def recalculate_all_runs_against_baselines(db: Session, baselines: BaselineConfi
                 if time_val is not None:
                     diff = round(time_val - target_time, 2)
                     ev.difference_from_baseline = f"{diff:+.2f}s vs target"
-                    ev.baseline_status = "Within target threshold" if (time_val <= target_time if baselines.time_comparison == 'lower' else time_val >= target_time) else "Exceeds target limit"
+                    ev.baseline_status = "Within target threshold" if (time_val <= target_time if time_comparison == 'lower' else time_val >= target_time) else "Exceeds target limit"
                     
     db.commit()
 
-def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines):
+def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines, db: Optional[Session] = None):
     acc_val = None
     f1_val = None
     time_val = None
@@ -487,14 +508,24 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
                 time_val = round(float(ev.extracted_value.replace("s", "").strip()), 2)
             except Exception:
                 pass
-                
+    
+    use_case_name = getattr(r, 'use_case', 'Traffic Sign Recognition') or "Traffic Sign Recognition"
     target_acc = baselines.accuracy
     target_f1 = baselines.macro_f1
     target_time = baselines.training_time
+    time_comparison = baselines.time_comparison
     
+    if db:
+        uc = db.query(UseCaseConfig).filter(UseCaseConfig.name == use_case_name).first()
+        if uc:
+            target_acc = uc.accuracy
+            target_f1 = uc.macro_f1
+            target_time = uc.training_time
+            time_comparison = uc.time_comparison
+                
     passed_acc = acc_val is not None and acc_val >= target_acc
     passed_f1 = f1_val is not None and f1_val >= target_f1
-    passed_time = time_val is not None and (time_val <= target_time if baselines.time_comparison == "lower" else time_val >= target_time)
+    passed_time = time_val is not None and (time_val <= target_time if time_comparison == "lower" else time_val >= target_time)
     
     acc_delta = round(acc_val - target_acc, 2) if acc_val is not None else None
     f1_delta = round(f1_val - target_f1, 2) if f1_val is not None else None
@@ -521,6 +552,7 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
         "dept": getattr(r, 'department', None) or "AIML",
         "sec": getattr(r, 'section', None) or "A",
         "roll_no": getattr(r, 'roll_no', None) or "24AM001",
+        "use_case": use_case_name,
         "filename": r.filename,
         "batch_id": r.batch_id,
         "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
@@ -535,7 +567,7 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
         "training_time": time_val if time_val is not None else "N/A",
         "training_time_target": target_time,
         "training_time_delta": time_delta,
-        "time_comparison": baselines.time_comparison,
+        "time_comparison": time_comparison,
         "baselines_passed_count": baselines_passed_count,
         "total_baselines": 3,
         "status": r.overall_status,
@@ -591,6 +623,8 @@ def get_stats(db: Session = Depends(get_db)):
     try:
         runs = db.query(ValidationRun).all()
         total = len(runs)
+        use_case_configs = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
+        
         target_acc = current_baselines.accuracy
         target_f1 = current_baselines.macro_f1
         target_time = current_baselines.training_time
@@ -637,6 +671,7 @@ def get_stats(db: Session = Depends(get_db)):
                 
             student_records.append({
                 "name": r.student_name,
+                "use_case": getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition',
                 "accuracy": student_acc if student_acc is not None else 0.0,
                 "is_verified": student_acc is not None,
                 "meets_target": student_acc is not None and student_acc >= target_acc,
@@ -646,29 +681,64 @@ def get_stats(db: Session = Depends(get_db)):
         avg_acc = round(sum(acc_list) / len(acc_list), 1) if acc_list else 0.0
         avg_f1 = round(sum(f1_list) / len(f1_list), 1) if f1_list else 0.0
         avg_time = round(sum(time_list) / len(time_list), 1) if time_list else 0.0
-        
         success = sum(1 for r in runs if r.overall_status == "VERIFIED")
         
-        # Baseline-correlated distribution (Dynamically changes when baselines change)
+        # Calculate stats individually for each of the 7 use cases
+        use_case_stats = []
+        for uc in use_case_configs:
+            uc_runs = [r for r in runs if (getattr(r, 'use_case', None) or 'Traffic Sign Recognition') == uc.name]
+            uc_total = len(uc_runs)
+            uc_passed = sum(1 for r in uc_runs if r.overall_status == "VERIFIED")
+            
+            uc_acc_list = []
+            uc_f1_list = []
+            uc_time_list = []
+            for r in uc_runs:
+                for ev in r.evidence:
+                    if ev.verification_status == "VERIFIED" and ev.extracted_value:
+                        try:
+                            if ev.metric_name == "Accuracy":
+                                uc_acc_list.append(float(ev.extracted_value.replace("%", "").strip()))
+                            elif ev.metric_name == "Macro F1":
+                                uc_f1_list.append(float(ev.extracted_value.replace("%", "").strip()))
+                            elif ev.metric_name == "Training Time":
+                                uc_time_list.append(float(ev.extracted_value.replace("s", "").strip()))
+                        except Exception:
+                            pass
+            
+            uc_avg_acc = round(sum(uc_acc_list) / len(uc_acc_list), 1) if uc_acc_list else 0.0
+            uc_avg_f1 = round(sum(uc_f1_list) / len(uc_f1_list), 1) if uc_f1_list else 0.0
+            uc_avg_time = round(sum(uc_time_list) / len(uc_time_list), 1) if uc_time_list else 0.0
+            
+            use_case_stats.append({
+                "id": uc.id,
+                "name": uc.name,
+                "description": uc.description,
+                "student_quota": uc.student_quota, # 15
+                "total_submissions": uc_total,
+                "passed_count": uc_passed,
+                "review_count": uc_total - uc_passed,
+                "validation_success_rate": round((uc_passed / uc_total) * 100, 1) if uc_total > 0 else 0.0,
+                "avg_accuracy": uc_avg_acc,
+                "avg_macro_f1": uc_avg_f1,
+                "avg_training_time": uc_avg_time,
+                "quota_progress": min(100, round((uc_total / max(1, uc.student_quota)) * 100, 1)),
+                "baseline": {
+                    "accuracy": uc.accuracy,
+                    "macro_f1": uc.macro_f1,
+                    "training_time": uc.training_time,
+                    "time_comparison": uc.time_comparison,
+                    "student_quota": uc.student_quota
+                }
+            })
+        
+        # Baseline-correlated distribution
         dist = [
-            {
-                "name": f">= {target_acc}% (Target Met)",
-                "students": meets_target_count,
-                "fill": "#10B981"
-            },
-            {
-                "name": f"< {target_acc}% (Below Target)",
-                "students": below_target_count,
-                "fill": "#F59E0B"
-            },
-            {
-                "name": "Unverified / 0%",
-                "students": unverified_count,
-                "fill": "#6B7280"
-            }
+            {"name": f">= {target_acc}% (Target Met)", "students": meets_target_count, "fill": "#10B981"},
+            {"name": f"< {target_acc}% (Below Target)", "students": below_target_count, "fill": "#F59E0B"},
+            {"name": "Unverified / 0%", "students": unverified_count, "fill": "#6B7280"}
         ]
         
-        # Score range tiers
         range_dist = [
             {"name": "< 60%", "students": sum(1 for a in acc_list if a < 60), "fill": "#EF4444"},
             {"name": "60-75%", "students": sum(1 for a in acc_list if 60 <= a < 75), "fill": "#F59E0B"},
@@ -688,7 +758,8 @@ def get_stats(db: Session = Depends(get_db)):
             "accuracy_distribution": dist,
             "range_distribution": range_dist,
             "student_accuracies": student_records,
-            "baselines": current_baselines.dict()
+            "baselines": current_baselines.dict(),
+            "use_cases": use_case_stats
         }
     except Exception as e:
         traceback.print_exc()
@@ -700,51 +771,103 @@ def get_stats(db: Session = Depends(get_db)):
             "avg_macro_f1": 0.0,
             "avg_training_time": 0.0,
             "validation_success_rate": 0,
-            "accuracy_distribution": [
-                {"name": f">= {current_baselines.accuracy}% (Target Met)", "students": 0, "fill": "#10B981"},
-                {"name": f"< {current_baselines.accuracy}% (Below Target)", "students": 0, "fill": "#F59E0B"},
-                {"name": "Unverified / 0%", "students": 0, "fill": "#6B7280"}
-            ],
+            "accuracy_distribution": [],
             "range_distribution": [],
             "student_accuracies": [],
-            "baselines": current_baselines.dict()
+            "baselines": current_baselines.dict(),
+            "use_cases": []
         }
-    
-    # Score range tiers
-    range_dist = [
-        {"name": "< 60%", "students": sum(1 for a in acc_list if a < 60), "fill": "#EF4444"},
-        {"name": "60-75%", "students": sum(1 for a in acc_list if 60 <= a < 75), "fill": "#F59E0B"},
-        {"name": "75-90%", "students": sum(1 for a in acc_list if 75 <= a < 90), "fill": "#3B82F6"},
-        {"name": "90-100%", "students": sum(1 for a in acc_list if a >= 90), "fill": "#10B981"},
-        {"name": "Unverified", "students": unverified_count, "fill": "#6B7280"}
+
+@app.get("/api/use-cases")
+def get_use_cases(db: Session = Depends(get_db)):
+    ucs = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "accuracy": u.accuracy,
+            "macro_f1": u.macro_f1,
+            "training_time": u.training_time,
+            "time_comparison": u.time_comparison,
+            "student_quota": u.student_quota,
+            "description": u.description
+        }
+        for u in ucs
     ]
+
+class UseCaseBaselineItem(BaseModel):
+    id: Optional[int] = None
+    name: str
+    accuracy: float
+    macro_f1: float
+    training_time: float
+    time_comparison: Optional[str] = "lower"
+    student_quota: Optional[int] = 15
+    description: Optional[str] = None
+
+class BatchUseCaseUpdateRequest(BaseModel):
+    use_cases: list[UseCaseBaselineItem]
+
+@app.post("/api/use-cases/baselines")
+def update_use_case_baselines(req: BatchUseCaseUpdateRequest, db: Session = Depends(get_db)):
+    for item in req.use_cases:
+        uc = db.query(UseCaseConfig).filter(UseCaseConfig.name == item.name).first()
+        if uc:
+            uc.accuracy = item.accuracy
+            uc.macro_f1 = item.macro_f1
+            uc.training_time = item.training_time
+            if item.time_comparison:
+                uc.time_comparison = item.time_comparison
+            if item.student_quota is not None:
+                uc.student_quota = item.student_quota
+    db.commit()
+    recalculate_all_runs_against_baselines(db)
     
+    updated = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
     return {
-        "total_students": total,
-        "validated": total,
-        "pending": 0,
-        "avg_accuracy": avg_acc,
-        "avg_macro_f1": avg_f1,
-        "avg_training_time": avg_time,
-        "validation_success_rate": round((success / total) * 100, 1) if total > 0 else 0,
-        "accuracy_distribution": dist,
-        "range_distribution": range_dist,
-        "student_accuracies": student_records,
-        "baselines": current_baselines.dict()
+        "message": "All 7 use case baselines successfully updated and student runs re-evaluated.",
+        "use_cases": [
+            {
+                "id": u.id,
+                "name": u.name,
+                "accuracy": u.accuracy,
+                "macro_f1": u.macro_f1,
+                "training_time": u.training_time,
+                "time_comparison": u.time_comparison,
+                "student_quota": u.student_quota,
+                "description": u.description
+            }
+            for u in updated
+        ]
     }
 
 @app.get("/baselines")
-def get_baselines():
-    return current_baselines.dict()
+def get_baselines(db: Session = Depends(get_db)):
+    ucs = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
+    return {
+        "global": current_baselines.dict(),
+        "use_cases": [
+            {
+                "id": u.id,
+                "name": u.name,
+                "accuracy": u.accuracy,
+                "macro_f1": u.macro_f1,
+                "training_time": u.training_time,
+                "time_comparison": u.time_comparison,
+                "student_quota": u.student_quota,
+                "description": u.description
+            }
+            for u in ucs
+        ]
+    }
 
 @app.post("/baselines")
 def update_baselines(config: BaselineConfig, db: Session = Depends(get_db)):
     global current_baselines
     current_baselines = config
-    # Dynamically re-evaluate all stored submissions against new baseline targets
     recalculate_all_runs_against_baselines(db, current_baselines)
     return {
-        "message": "Baselines updated and all student projects successfully re-evaluated against new settings.",
+        "message": "Baselines updated and all student projects successfully re-evaluated.",
         "baselines": current_baselines.dict()
     }
 

@@ -15,6 +15,7 @@ export const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [reevaluating, setReevaluating] = useState(false);
   const [search, setSearch] = useState('');
+  const [useCaseFilter, setUseCaseFilter] = useState('ALL');
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
 
   const fetchLeaderboard = async () => {
@@ -50,10 +51,13 @@ export const Leaderboard = () => {
     }
   };
 
-  const filteredData = data.filter(r => 
-    r.student_name.toLowerCase().includes(search.toLowerCase()) ||
-    r.filename.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredData = data.filter(r => {
+    const matchesSearch = r.student_name.toLowerCase().includes(search.toLowerCase()) ||
+      r.filename.toLowerCase().includes(search.toLowerCase()) ||
+      (r.roll_no && r.roll_no.toLowerCase().includes(search.toLowerCase()));
+    const matchesTrack = useCaseFilter === 'ALL' || r.use_case === useCaseFilter;
+    return matchesSearch && matchesTrack;
+  });
 
   return (
     <div className="space-y-8 pb-10">
@@ -68,8 +72,24 @@ export const Leaderboard = () => {
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Student Leaderboard</h1>
           <p className="text-slate-500 text-base font-medium">Deterministic class rankings evaluated strictly against baseline targets</p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* Use Case Filter Dropdown */}
+          <select
+            value={useCaseFilter}
+            onChange={(e) => setUseCaseFilter(e.target.value)}
+            className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 shadow-sm"
+          >
+            <option value="ALL">All 7 Use Cases</option>
+            <option value="Traffic Sign Recognition">1. Traffic Sign Recognition</option>
+            <option value="Crop Leaf Disease Classification">2. Crop Leaf Disease</option>
+            <option value="Face Mask Detection">3. Face Mask Detection</option>
+            <option value="Pet Image Segmentation">4. Pet Image Segmentation</option>
+            <option value="Image Generation with GANs">5. Image Generation (GANs)</option>
+            <option value="Image Captioning">6. Image Captioning</option>
+            <option value="Pneumonia Detection from Chest X-Rays">7. Pneumonia Detection (X-Ray)</option>
+          </select>
+
+          <div className="relative flex-1 md:w-60">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
@@ -192,11 +212,16 @@ export const Leaderboard = () => {
 
                     {/* Student Name */}
                     <td className="p-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-bold text-slate-900 text-sm">{row.student_name}</p>
                         {row.roll_no && (
                           <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
                             {row.roll_no}
+                          </span>
+                        )}
+                        {row.use_case && (
+                          <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                            {row.use_case}
                           </span>
                         )}
                       </div>
