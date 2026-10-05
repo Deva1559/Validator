@@ -121,9 +121,9 @@ class ValidationEvidence(Base):
     confidence_score = Column(Float, nullable=True)
     verification_status = Column(String) # VERIFIED, NOT VERIFIED, MULTIPLE VALUES
     
-    baseline_value = Column(String, nullable=True)
-    difference_from_baseline = Column(String, nullable=True)
-    baseline_status = Column(String, nullable=True)
+    baseline_value = Column(Text, nullable=True)
+    difference_from_baseline = Column(Text, nullable=True)
+    baseline_status = Column(Text, nullable=True)
     
     run = relationship("ValidationRun", back_populates="evidence")
 
@@ -207,7 +207,19 @@ def auto_migrate():
         except Exception:
             pass
 
-        # PostgreSQL migrations (adds missing columns in Supabase automatically)
+        # PostgreSQL migrations (adds missing columns and widens types in Supabase automatically)
+        try:
+            # Expand VARCHAR(50) columns in validation_evidence to TEXT to avoid StringDataRightTruncation
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN baseline_status TYPE TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN difference_from_baseline TYPE TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN baseline_value TYPE TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN extracted_value TYPE TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN verification_status TYPE TEXT"))
+            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN metric_name TYPE TEXT"))
+            conn.commit()
+        except Exception:
+            pass
+
         try:
             # validation_runs
             conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS department VARCHAR DEFAULT 'AIML'"))
