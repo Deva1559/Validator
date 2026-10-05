@@ -789,13 +789,15 @@ def get_leaderboard(db: Session = Depends(get_db)):
 
 @app.get("/api/reports")
 @app.get("/api/validations/all")
-def get_all_reports(roll_no: Optional[str] = None, db: Session = Depends(get_db)):
-    """Returns ALL uploaded files/runs for audit reports, preserving full submission history."""
+def get_all_reports(roll_no: Optional[str] = None, latest_only: bool = False, db: Session = Depends(get_db)):
+    """Returns uploaded files/runs for audit reports, with optional filtering for latest file per student."""
     try:
         query = db.query(ValidationRun)
         if roll_no and roll_no.strip():
             query = query.filter(ValidationRun.roll_no == roll_no.strip())
         all_runs = query.order_by(ValidationRun.id.desc()).all()
+        if latest_only:
+            all_runs = get_latest_runs_by_student(all_runs)
         return [format_run_data(r, i + 1, current_baselines, db) for i, r in enumerate(all_runs)]
     except Exception as e:
         traceback.print_exc()

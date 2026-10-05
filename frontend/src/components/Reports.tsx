@@ -93,6 +93,10 @@ export const Reports = () => {
   });
 
   const filteredReports = reports.filter(r => {
+    // In faculty login: strictly show ONLY the last uploaded file per student
+    if (!isStudent && !latestRunIds.has(r.id)) {
+      return false;
+    }
     if (isStudent && filterMode === 'MINE' && user?.roll_no) {
       if ((r.roll_no || '').trim().toUpperCase() !== user.roll_no.trim().toUpperCase()) {
         return false;
@@ -129,11 +133,17 @@ export const Reports = () => {
               Audit Transparency & Evidence Engine
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-              All Uploaded Versions Preserved
+              {isStudent ? 'All Uploaded Versions Preserved' : `Latest Submissions (${filteredReports.length} Students)`}
             </span>
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Validation Reports</h1>
-          <p className="text-slate-500 text-base font-medium">Explainable evidence, historical iteration audits, and dataset hygiene verification</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+            {isStudent ? 'My Audit Reports' : 'Validation Reports'}
+          </h1>
+          <p className="text-slate-500 text-base font-medium">
+            {isStudent 
+              ? 'Explainable evidence, historical iteration audits, and dataset hygiene verification'
+              : 'Official validation dossiers for each student\'s latest uploaded notebook'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button 

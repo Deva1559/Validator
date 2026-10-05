@@ -563,14 +563,14 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
         </div>
       </div>
 
-      {/* Main 3D Visualizers: Accuracy Distribution & Cohort Comparisons */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+      {/* Main 3D Visualizer: Accuracy Distribution */}
+      <div className="pt-4">
         {/* Dynamic Accuracy Distribution Graph */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="card-3d p-7 flex flex-col justify-between"
+          className="card-3d p-7 flex flex-col justify-between shadow-[0_4px_24px_rgba(0,0,0,0.03)]"
         >
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
@@ -694,89 +694,6 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
               className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1"
             >
               Adjust All 7 Baselines <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </motion.div>
-
-        {/* 3D Baseline Comparison Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="card-3d p-7 flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-indigo-600" />
-                  Cohort Baseline Comparison
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium">Cumulative progress of all 130 students relative to faculty criteria</p>
-              </div>
-              <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-200">
-                130 Enrolled Target
-              </span>
-            </div>
-
-            <div className="space-y-6">
-              {/* Accuracy Bar */}
-              <div>
-                <div className="flex justify-between text-sm mb-2 font-semibold">
-                  <span className="text-slate-600">Accuracy (Target: ≥ {targetAcc}%)</span>
-                  <span className={`font-mono ${stats.avg_accuracy >= targetAcc ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}`}>
-                    {stats.avg_accuracy}%
-                  </span>
-                </div>
-                <div className="well-3d h-3 p-0.5 overflow-hidden">
-                  <div 
-                    className={`h-full rounded-md shadow-sm transition-all duration-700 ${stats.avg_accuracy >= targetAcc ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-amber-400 to-amber-500'}`} 
-                    style={{ width: `${Math.min(100, Math.max(0, accProgress))}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Macro F1 Bar */}
-              <div>
-                <div className="flex justify-between text-sm mb-2 font-semibold">
-                  <span className="text-slate-600">Macro F1 (Target: ≥ {targetF1}%)</span>
-                  <span className={`font-mono ${stats.avg_macro_f1 >= targetF1 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}`}>
-                    {stats.avg_macro_f1}%
-                  </span>
-                </div>
-                <div className="well-3d h-3 p-0.5 overflow-hidden">
-                  <div 
-                    className={`h-full rounded-md shadow-sm transition-all duration-700 ${stats.avg_macro_f1 >= targetF1 ? 'bg-gradient-to-r from-indigo-500 to-blue-600' : 'bg-gradient-to-r from-amber-400 to-amber-500'}`} 
-                    style={{ width: `${Math.min(100, Math.max(0, f1Progress))}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Training Time Bar */}
-              <div>
-                <div className="flex justify-between text-sm mb-2 font-semibold">
-                  <span className="text-slate-600">Training Time (Target: ≤ {targetTime}s)</span>
-                  <span className={`font-mono ${stats.avg_training_time <= targetTime ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}`}>
-                    {stats.avg_training_time}s
-                  </span>
-                </div>
-                <div className="well-3d h-3 p-0.5 overflow-hidden">
-                  <div 
-                    className={`h-full rounded-md shadow-sm transition-all duration-700 ${stats.avg_training_time <= targetTime ? 'bg-gradient-to-r from-purple-500 to-violet-600' : 'bg-gradient-to-r from-amber-400 to-amber-500'}`} 
-                    style={{ width: `${Math.min(100, Math.max(0, timeProgress))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500 mt-6 font-medium">
-            <span>Cohort Passing Ratio: <strong className="text-slate-900 font-bold">{stats.validation_success_rate}%</strong></span>
-            <button 
-              onClick={() => setActiveTab && setActiveTab('Leaderboard')} 
-              className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1"
-            >
-              Open Full Leaderboard <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </motion.div>
