@@ -21,12 +21,13 @@ import {
   Filter
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 const DEFAULT_7_USE_CASES = [
   {
     id: 1,
     name: "Traffic Sign Recognition",
-    student_quota: 15,
+    student_quota: 19,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -36,12 +37,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Autonomous vision classification of road signs and regulatory symbols.",
-    baseline: { accuracy: 88, macro_f1: 85, training_time: 45, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 88, macro_f1: 85, training_time: 45, time_comparison: 'lower', student_quota: 19 }
   },
   {
     id: 2,
     name: "Crop Leaf Disease Classification",
-    student_quota: 15,
+    student_quota: 19,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -51,12 +52,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Agricultural AI diagnostic pipeline for early foliar pathology identification.",
-    baseline: { accuracy: 86, macro_f1: 82, training_time: 60, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 86, macro_f1: 82, training_time: 60, time_comparison: 'lower', student_quota: 19 }
   },
   {
     id: 3,
     name: "Face Mask Detection",
-    student_quota: 15,
+    student_quota: 19,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -66,12 +67,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Real-time facial occlusion audit for public health compliance verification.",
-    baseline: { accuracy: 90, macro_f1: 88, training_time: 30, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 90, macro_f1: 88, training_time: 30, time_comparison: 'lower', student_quota: 19 }
   },
   {
     id: 4,
     name: "Pet Image Segmentation",
-    student_quota: 15,
+    student_quota: 19,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -81,12 +82,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Pixel-level semantic contour mask extraction for animal morphology.",
-    baseline: { accuracy: 82, macro_f1: 78, training_time: 90, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 82, macro_f1: 78, training_time: 90, time_comparison: 'lower', student_quota: 19 }
   },
   {
     id: 5,
     name: "Image Generation with GANs",
-    student_quota: 15,
+    student_quota: 18,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -96,12 +97,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Generative adversarial distribution synthesis with fidelity metrics.",
-    baseline: { accuracy: 80, macro_f1: 75, training_time: 120, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 80, macro_f1: 75, training_time: 120, time_comparison: 'lower', student_quota: 18 }
   },
   {
     id: 6,
     name: "Image Captioning",
-    student_quota: 15,
+    student_quota: 18,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -111,12 +112,12 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "Multimodal vision-language synthesis bridging visual features with natural language.",
-    baseline: { accuracy: 82, macro_f1: 78, training_time: 100, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 82, macro_f1: 78, training_time: 100, time_comparison: 'lower', student_quota: 18 }
   },
   {
     id: 7,
     name: "Pneumonia Detection from Chest X-Rays",
-    student_quota: 15,
+    student_quota: 18,
     total_submissions: 0,
     passed_count: 0,
     review_count: 0,
@@ -126,7 +127,7 @@ const DEFAULT_7_USE_CASES = [
     avg_training_time: 0,
     quota_progress: 0,
     description: "High-stakes clinical radiographic screening with stringent false-negative penalties.",
-    baseline: { accuracy: 92, macro_f1: 90, training_time: 50, time_comparison: 'lower', student_quota: 15 }
+    baseline: { accuracy: 92, macro_f1: 90, training_time: 50, time_comparison: 'lower', student_quota: 18 }
   }
 ];
 
@@ -189,6 +190,7 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, color, badge, progress
 );
 
 export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => void }) => {
+  const { isStudent } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [chartView, setChartView] = useState<'BASELINE' | 'TIERS' | 'STUDENTS'>('BASELINE');
@@ -262,11 +264,11 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
               Multi-Track Analytics
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-              7 Use Cases • 15 Students Each
+              7 Use Cases • 130 Enrolled Students
             </span>
           </div>
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">AI Evaluation Dashboard</h1>
-          <p className="text-slate-500 text-base font-medium">Batch performance monitoring across all 7 assignment use cases (105 Students Total)</p>
+          <p className="text-slate-500 text-base font-medium">Batch performance monitoring across all 7 assignment use cases (130 Students Total)</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -277,13 +279,15 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
             Sync Metrics
           </button>
-          <button 
-            onClick={() => setActiveTab && setActiveTab('Upload Projects')}
-            className="btn-3d px-5 py-2.5 flex items-center gap-2 text-xs font-bold tracking-wide"
-          >
-            <Zap className="w-4 h-4" />
-            New Submission
-          </button>
+          {isStudent && (
+            <button 
+              onClick={() => setActiveTab && setActiveTab('Upload Projects')}
+              className="btn-3d px-5 py-2.5 flex items-center gap-2 text-xs font-bold tracking-wide"
+            >
+              <Zap className="w-4 h-4" />
+              New Submission
+            </button>
+          )}
         </div>
       </div>
 
@@ -295,16 +299,16 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700">Combined Cohort Overview (All 7 Tracks)</h2>
           </div>
           <span className="text-xs font-bold text-slate-500 font-mono">
-            {stats.total_students} / 105 Students Submitted
+            {stats.total_students} / 130 Students Submitted
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <MetricCard 
             title="Total Cohort Submissions" 
-            value={`${stats.total_students} / 105`} 
-            subtitle={`${Math.max(0, 105 - stats.total_students)} available seats remaining`}
-            progress={Math.min(100, Math.round((stats.total_students / 105) * 100))}
+            value={`${stats.total_students} / 130`} 
+            subtitle={`${Math.max(0, 130 - stats.total_students)} available seats remaining`}
+            progress={Math.min(100, Math.round((stats.total_students / 130) * 100))}
             icon={Users} 
             color="bg-gradient-to-tr from-blue-600 to-indigo-600" 
             delay={0.05} 
@@ -378,7 +382,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                   }`}
                   title={uc.name}
                 >
-                  {idx + 1}. {shortName} ({uc.total_submissions}/15)
+                  {idx + 1}. {shortName} ({uc.total_submissions}/{uc.student_quota || 19})
                 </button>
               );
             })}
@@ -388,7 +392,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
         {/* RENDER ALL 4 CARDS FOR EACH OF THE 7 USE CASES */}
         <div className="space-y-8">
           {displayedUseCases.map((uc: any, ucIdx: number) => {
-            const quota = uc.student_quota || 15;
+            const quota = uc.student_quota || 19;
             const subs = uc.total_submissions || 0;
             const quotaPercent = Math.min(100, Math.round((subs / quota) * 100));
             const baseAcc = uc.baseline?.accuracy ?? 85;
@@ -422,7 +426,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             ? 'bg-blue-50 text-blue-700 border-blue-200' 
                             : 'bg-slate-100 text-slate-600 border-slate-200'
                       }`}>
-                        {isFull ? 'Quota Full (15/15)' : `${slotsLeft} of 15 Slots Available`}
+                        {isFull ? `Quota Full (${subs}/${quota})` : `${slotsLeft} of ${quota} Slots Available`}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-slate-500 font-medium max-w-3xl">
@@ -444,7 +448,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
 
                 {/* THE 4 SEPARATE METRIC CARDS FOR THIS USE CASE */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Card 1: Total Submissions (X / 15 Enrolled) */}
+                  {/* Card 1: Total Submissions (X / Quota Enrolled) */}
                   <MetricCard
                     title="Track Submissions"
                     value={`${subs} / ${quota}`}
@@ -452,7 +456,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                     progress={quotaPercent}
                     icon={Users}
                     color="bg-gradient-to-tr from-blue-600 to-indigo-600"
-                    badge="15 Students Quota"
+                    badge={`${quota} Students Quota`}
                     delay={0.05}
                   />
 
@@ -630,10 +634,10 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                   <Sliders className="w-5 h-5 text-indigo-600" />
                   Cohort Baseline Comparison
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium">Cumulative progress of all 105 students relative to faculty criteria</p>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">Cumulative progress of all 130 students relative to faculty criteria</p>
               </div>
               <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-200">
-                105 Enrolled Target
+                130 Enrolled Target
               </span>
             </div>
 

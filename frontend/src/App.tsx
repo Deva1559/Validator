@@ -18,8 +18,10 @@ function App() {
     return <Login />;
   }
 
-  // Restrict faculty-only administrative views for students
+  // Restrict faculty-only administrative views for students, and student-only upload for faculty
   const safeTab = (isStudent && (activeTab === 'Baselines' || activeTab === 'Validation Queue'))
+    ? 'Dashboard'
+    : (!isStudent && activeTab === 'Upload Projects')
     ? 'Dashboard'
     : activeTab;
 

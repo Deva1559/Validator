@@ -333,8 +333,8 @@ export const BaselineConfig = () => {
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base font-extrabold text-slate-900">15 Students Assigned Per Use Case</h3>
-            <p className="text-xs text-slate-500 font-medium">7 Use Cases × 15 Students = 105 Total Cohort Capacity</p>
+            <h3 className="text-base font-extrabold text-slate-900">130 Students Cohort Distribution</h3>
+            <p className="text-xs text-slate-500 font-medium">7 Use Cases • 130 Total Cohort Capacity (18–19 Students per Track)</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs font-bold font-mono">

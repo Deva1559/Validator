@@ -50,7 +50,6 @@ export const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setAct
           {isFaculty ? (
             <>
               <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} />
-              <NavItem icon={UploadCloud} label="Upload Projects" active={activeTab === 'Upload Projects'} onClick={() => setActiveTab('Upload Projects')} />
               <NavItem icon={ListChecks} label="Validation Queue" active={activeTab === 'Validation Queue'} onClick={() => setActiveTab('Validation Queue')} />
               <NavItem icon={Users} label="Student Directory" active={activeTab === 'Students'} onClick={() => setActiveTab('Students')} />
               <NavItem icon={Trophy} label="Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
