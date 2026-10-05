@@ -291,47 +291,6 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
         </div>
       </div>
 
-      {/* Graphical Live Cohort Pipeline Strip */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.02 }}
-        className="card-3d p-6 bg-gradient-to-r from-blue-50/70 via-white to-indigo-50/70 border border-blue-200/80 shadow-[0_6px_24px_rgba(37,99,235,0.05)] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6"
-      >
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
-            </span>
-            <span className="text-xs font-black uppercase tracking-wider text-blue-900 font-mono">
-              Single-Student Deduplicated Mode Active
-            </span>
-          </div>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-            130 Enrolled Cohort Architecture
-          </h3>
-          <p className="text-xs md:text-sm text-slate-500 font-medium">
-            Multiple uploads by the same student automatically update their single entry with their latest notebook • Full file revision history is preserved under Audit Reports
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-xs font-bold shrink-0">
-          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs text-center min-w-[110px]">
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Unique Students</p>
-            <p className="text-xl font-black text-slate-900">{stats.total_students} <span className="text-xs text-slate-400 font-medium">/ 130</span></p>
-          </div>
-          <div className="bg-white px-4 py-3 rounded-2xl border border-blue-200 shadow-2xs text-center min-w-[110px]">
-            <p className="text-[10px] text-blue-600 uppercase tracking-wider font-extrabold">Notebook Files</p>
-            <p className="text-xl font-black text-blue-700">{stats.total_files_uploaded || stats.total_students}</p>
-          </div>
-          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs text-center min-w-[110px]">
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Available Seats</p>
-            <p className="text-xl font-black text-slate-700">{Math.max(0, 130 - stats.total_students)}</p>
-          </div>
-        </div>
-      </motion.div>
-
       {/* Cohort-Wide High Level Summary (4 Cards) */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
