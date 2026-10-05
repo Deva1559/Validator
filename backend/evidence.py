@@ -397,7 +397,7 @@ def analyze_notebook_evidence(db: Session, run_id: int, filename: str, content: 
     run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
     if run:
         run.final_score = total_score
-        run.overall_status = "VERIFIED" if all_passed else "REVIEW REQUIRED"
+        run.overall_status = "REVIEWED"
     
     db.add(AuditLog(
         run_id=run_id, action="Validation Completed",

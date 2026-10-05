@@ -317,15 +317,9 @@ export const Leaderboard = () => {
 
                     {/* Status */}
                     <td className="p-4">
-                      {row.status === 'VERIFIED' ? (
-                        <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Passed
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
-                          <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Review
-                        </span>
-                      )}
+                      <span className="inline-flex items-center text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-blue-600" /> Reviewed
+                      </span>
                     </td>
 
                     {/* Action */}

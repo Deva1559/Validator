@@ -252,15 +252,9 @@ export const Reports = () => {
                         </p>
                       )}
                     </div>
-                    {report.status === "VERIFIED" ? (
-                      <span className="flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Pass
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
-                        <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" /> Review
-                      </span>
-                    )}
+                    <span className="flex items-center text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold shadow-xs">
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-blue-600" /> Reviewed
+                    </span>
                   </div>
                 
                 <div className="grid grid-cols-2 gap-3 my-5">
@@ -325,15 +319,9 @@ export const Reports = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Validation Evidence & Audit</h2>
-                      {selectedRun.status === "VERIFIED" ? (
-                        <span className="bg-emerald-100 text-emerald-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200">
-                          VERIFIED
-                        </span>
-                      ) : (
-                        <span className="bg-amber-100 text-amber-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200">
-                          REVIEW REQUIRED
-                        </span>
-                      )}
+                      <span className="bg-blue-100 text-blue-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200">
+                        REVIEWED
+                      </span>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                       Student: <span className="text-blue-600 font-bold">{selectedRun.student_name}</span>

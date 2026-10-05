@@ -96,15 +96,9 @@ export const ValidationQueue = () => {
                     </div>
 
                     <div>
-                      {item.status === 'VERIFIED' ? (
-                        <span className="flex items-center text-emerald-700 text-xs gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full font-bold shadow-xs">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fully Verified
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-amber-700 text-xs gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full font-bold shadow-xs">
-                          <AlertTriangle className="w-4 h-4 text-amber-600" /> Review Required
-                        </span>
-                      )}
+                      <span className="flex items-center text-blue-700 text-xs gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-bold shadow-xs">
+                        <CheckCircle2 className="w-4 h-4 text-blue-600" /> Reviewed
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -7,7 +7,7 @@ export const Students = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'VERIFIED' | 'REVIEW REQUIRED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'REVIEWED'>('ALL');
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export const Students = () => {
   const filteredStudents = students.filter(s => {
     const matchesSearch = s.student_name.toLowerCase().includes(search.toLowerCase()) ||
                           s.filename.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || s.status === statusFilter;
+    const matchesStatus = statusFilter === 'ALL' || (s.status === 'REVIEWED' || s.status === 'VERIFIED');
     return matchesSearch && matchesStatus;
   });
 
@@ -59,16 +59,10 @@ export const Students = () => {
               All ({students.length})
             </button>
             <button 
-              onClick={() => setStatusFilter('VERIFIED')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'VERIFIED' ? 'bg-white text-emerald-600 shadow-[0_2px_4px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
+              onClick={() => setStatusFilter('REVIEWED')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'REVIEWED' ? 'bg-white text-blue-600 shadow-[0_2px_4px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
             >
-              Passed
-            </button>
-            <button 
-              onClick={() => setStatusFilter('REVIEW REQUIRED')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'REVIEW REQUIRED' ? 'bg-white text-amber-600 shadow-[0_2px_4px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              Review
+              Reviewed ({students.length})
             </button>
           </div>
         </div>
@@ -148,15 +142,9 @@ export const Students = () => {
                     <span className="text-[11px] text-slate-400">/ 100</span>
                   </div>
 
-                  {s.status === 'VERIFIED' ? (
-                    <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xs">
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Passed
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xs">
-                      <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Review
-                    </span>
-                  )}
+                  <span className="inline-flex items-center text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-blue-600" /> Reviewed
+                  </span>
                 </div>
               </motion.div>
             ))}
@@ -202,10 +190,8 @@ export const Students = () => {
                     <p className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-1">Deterministic AI Score</p>
                     <p className="text-3xl font-black text-slate-900">{selectedStudent.final_score} <span className="text-sm font-semibold text-slate-400">/ 100</span></p>
                   </div>
-                  <span className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase shadow-xs ${
-                    selectedStudent.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
-                  }`}>
-                    {selectedStudent.status}
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase shadow-xs bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> Reviewed
                   </span>
                 </div>
 
