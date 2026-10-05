@@ -4,7 +4,7 @@ import asyncio
 import traceback
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request, HTTPException, Body
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -52,6 +52,153 @@ class BaselineConfig(BaseModel):
     time_comparison: str = "lower"
 
 current_baselines = BaselineConfig()
+
+@app.get("/")
+@app.head("/")
+def root_index(request: Request):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModelValidator AI API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 40px 48px;
+            max-width: 620px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(99, 102, 241, 0.15);
+            text-align: center;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #10b981;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p {
+            color: #94a3b8;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+        .btn-secondary {
+            background: rgba(51, 65, 85, 0.6);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .btn-secondary:hover {
+            background: rgba(71, 85, 105, 0.8);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">
+            <span class="pulse"></span>
+            System Online & Healthy
+        </div>
+        <h1>ModelValidator AI API</h1>
+        <p>Automated AI/ML forensic verification backend service is running live on Render.</p>
+        <div class="actions">
+            <a href="/docs" class="btn btn-primary">Interactive Swagger Docs (/docs)</a>
+            <a href="/health" class="btn btn-secondary">API Health Check (/health)</a>
+        </div>
+    </div>
+</body>
+</html>""")
+
+    return {
+        "status": "healthy",
+        "service": "ModelValidator AI Backend API",
+        "version": "1.0.0",
+        "docs_url": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "swagger_docs": "/docs",
+            "openapi": "/openapi.json",
+            "stats": "/stats",
+            "leaderboard": "/leaderboard",
+            "use_cases": "/api/use-cases",
+            "auth_login": "/api/auth/login",
+            "upload_validation": "/upload"
+        }
+    }
+
+@app.get("/health")
+@app.head("/health")
+def health_check():
+    return {"status": "healthy", "service": "ModelValidator AI Backend"}
 
 def verify_faculty_key(provided_key: Optional[str]) -> bool:
     if not provided_key:

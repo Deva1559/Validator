@@ -8,19 +8,38 @@ from datetime import datetime
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./validation_evidence.db")
+
+# Ensure robust SQLAlchemy driver dialect for PostgreSQL
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 try:
-    connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
     engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
     with engine.connect() as conn:
         pass
-    print(f"Database connected: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'SQLite'}")
+    print(f"Database connected successfully: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'SQLite'}")
 except Exception as e:
-    print(f"Database connection note ({e}). Falling back to local SQLite.")
-    DATABASE_URL = "sqlite:///./validation_evidence.db"
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    # Try alternative driver if psycopg2 is missing
+    tried_fallback = False
+    if "postgresql+psycopg2" in DATABASE_URL:
+        try:
+            alt_url = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+            engine = create_engine(alt_url, pool_pre_ping=True)
+            with engine.connect() as conn:
+                pass
+            DATABASE_URL = alt_url
+            print(f"Database connected with psycopg3: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'Postgres'}")
+            tried_fallback = True
+        except Exception:
+            pass
+
+    if not tried_fallback:
+        print(f"Database connection note ({e}). Falling back to local SQLite.")
+        DATABASE_URL = "sqlite:///./validation_evidence.db"
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
