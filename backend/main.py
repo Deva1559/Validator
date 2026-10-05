@@ -240,6 +240,20 @@ def clear_all_validation_data(
     db.commit()
     return {"message": "All student testing and validation records have been completely cleared."}
 
+@app.delete("/api/validations/{run_id}")
+def delete_single_validation_run(run_id: int, db: Session = Depends(get_db)):
+    """Deletes a single validation run and its associated evidence, findings, and logs."""
+    run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Validation run #{run_id} not found.")
+    db.query(ValidationEvidence).filter(ValidationEvidence.run_id == run_id).delete()
+    db.query(ValidationFinding).filter(ValidationFinding.run_id == run_id).delete()
+    db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == run_id).delete()
+    db.query(AuditLog).filter(AuditLog.run_id == run_id).delete()
+    db.delete(run)
+    db.commit()
+    return {"success": True, "message": f"Run #{run_id} deleted successfully."}
+
 class LoginRequest(BaseModel):
     role: str # "FACULTY" or "STUDENT"
     identifier: str # Key/email for faculty; Roll No or Email for student
@@ -524,15 +538,17 @@ async def upload_notebooks(
                 batch_id=batch_id
             )
             db.add(run)
-            db.commit()
-            db.refresh(run)
+            db.flush() # Flush to generate run.id for foreign keys without premature commit
             
             # Audit Log
             db.add(AuditLog(run_id=run.id, action="Notebook Uploaded", details=f"Student: {final_name} | Roll: {final_roll} | Track: {final_use_case}"))
-            db.commit()
             
             # Run Evidence Analysis against specific use case baseline
             analyze_notebook_evidence(db, run.id, file.filename, content, baseline_for_run)
+            
+            # Commit run, audit log, and all extracted evidence atomically
+            db.commit()
+            db.refresh(run)
             
             results.append({
                 "id": run.id, 
