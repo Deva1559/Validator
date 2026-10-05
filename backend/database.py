@@ -16,7 +16,7 @@ elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("p
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 try:
-    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {"connect_timeout": 5}
     engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
     with engine.connect() as conn:
         pass
@@ -27,7 +27,7 @@ except Exception as e:
     if "postgresql+psycopg2" in DATABASE_URL:
         try:
             alt_url = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
-            engine = create_engine(alt_url, pool_pre_ping=True)
+            engine = create_engine(alt_url, connect_args={"connect_timeout": 5}, pool_pre_ping=True)
             with engine.connect() as conn:
                 pass
             DATABASE_URL = alt_url
