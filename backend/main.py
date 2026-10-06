@@ -1,4 +1,11 @@
 import os
+import sys
+
+# Ensure backend directory is in sys.path so modules like database, evidence, scoring_engine resolve cleanly
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
 import json
 import asyncio
 import traceback
@@ -34,19 +41,33 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
+    origin = request.headers.get("origin")
+    allow_origin = origin if origin else "*"
+
     if request.method == "OPTIONS":
-        response = JSONResponse(content={"status": "ok"})
+        response = JSONResponse(status_code=200, content={"status": "ok"})
     else:
         try:
             response = await call_next(request)
         except Exception as exc:
             traceback.print_exc()
             response = JSONResponse(status_code=500, content={"error": str(exc)})
-            
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
+
+    response.headers["Access-Control-Allow-Origin"] = allow_origin
+    if origin:
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since, *"
+    response.headers["Access-Control-Max-Age"] = "86400"
     return response
+
+@app.on_event("startup")
+async def app_startup_event():
+    try:
+        from seed_12_submissions import seed_student_submissions
+        seed_student_submissions(force_refresh=False)
+    except Exception as e:
+        print("Note on startup seed:", e)
 
 def get_db():
     db = SessionLocal()

@@ -8,7 +8,10 @@ from datetime import datetime
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./validation_evidence.db")
+LOCAL_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "validation_evidence.db")
+SQLITE_DEFAULT_URL = f"sqlite:///{LOCAL_DB_PATH}"
+
+DATABASE_URL = os.getenv("DATABASE_URL", SQLITE_DEFAULT_URL)
 
 # Ensure robust SQLAlchemy driver dialect for PostgreSQL
 if DATABASE_URL.startswith("postgres://"):
@@ -17,7 +20,7 @@ elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("p
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 try:
-    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {"connect_timeout": 5}
+    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {"connect_timeout": 4}
     engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
     with engine.connect() as conn:
         pass
@@ -28,7 +31,7 @@ except Exception as e:
     if "postgresql+psycopg2" in DATABASE_URL:
         try:
             alt_url = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
-            engine = create_engine(alt_url, connect_args={"connect_timeout": 5}, pool_pre_ping=True)
+            engine = create_engine(alt_url, connect_args={"connect_timeout": 4}, pool_pre_ping=True)
             with engine.connect() as conn:
                 pass
             DATABASE_URL = alt_url
@@ -38,8 +41,8 @@ except Exception as e:
             pass
 
     if not tried_fallback:
-        print(f"Database connection note ({e}). Falling back to local SQLite.")
-        DATABASE_URL = "sqlite:///./validation_evidence.db"
+        print(f"Database connection note ({e}). Falling back to local SQLite at {LOCAL_DB_PATH}.")
+        DATABASE_URL = SQLITE_DEFAULT_URL
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -289,32 +292,86 @@ Base.metadata.create_all(bind=engine)
 
 # Auto-migrate schema
 def auto_migrate():
-    with engine.connect() as conn:
-        # SQLite migrations
-        try:
-            result = conn.execute(text("PRAGMA table_info(validation_runs)"))
-            existing_cols = [row[1] for row in result.fetchall()]
-            if existing_cols:
-                if "department" not in existing_cols:
-                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN department VARCHAR DEFAULT 'AIML'"))
-                if "section" not in existing_cols:
-                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN section VARCHAR DEFAULT 'A'"))
-                if "roll_no" not in existing_cols:
-                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN roll_no VARCHAR DEFAULT '24AM001'"))
-                if "use_case" not in existing_cols:
-                    conn.execute(text("ALTER TABLE validation_runs ADD COLUMN use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
-                conn.commit()
+    try:
+        with engine.connect() as conn:
+            # SQLite migrations
+            try:
+                result = conn.execute(text("PRAGMA table_info(validation_runs)"))
+                existing_cols = [row[1] for row in result.fetchall()]
+                if existing_cols:
+                    if "department" not in existing_cols:
+                        conn.execute(text("ALTER TABLE validation_runs ADD COLUMN department VARCHAR DEFAULT 'AIML'"))
+                    if "section" not in existing_cols:
+                        conn.execute(text("ALTER TABLE validation_runs ADD COLUMN section VARCHAR DEFAULT 'A'"))
+                    if "roll_no" not in existing_cols:
+                        conn.execute(text("ALTER TABLE validation_runs ADD COLUMN roll_no VARCHAR DEFAULT '24AM001'"))
+                    if "use_case" not in existing_cols:
+                        conn.execute(text("ALTER TABLE validation_runs ADD COLUMN use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
+                    conn.commit()
 
-            result_s = conn.execute(text("PRAGMA table_info(student_users)"))
-            existing_s_cols = [row[1] for row in result_s.fetchall()]
-            if existing_s_cols and "assigned_use_case" not in existing_s_cols:
-                conn.execute(text("ALTER TABLE student_users ADD COLUMN assigned_use_case VARCHAR"))
-                conn.commit()
+                result_s = conn.execute(text("PRAGMA table_info(student_users)"))
+                existing_s_cols = [row[1] for row in result_s.fetchall()]
+                if existing_s_cols and "assigned_use_case" not in existing_s_cols:
+                    conn.execute(text("ALTER TABLE student_users ADD COLUMN assigned_use_case VARCHAR"))
+                    conn.commit()
 
-            result_ev = conn.execute(text("PRAGMA table_info(validation_evidence)"))
-            existing_ev_cols = [row[1] for row in result_ev.fetchall()]
-            if existing_ev_cols:
-                for col, col_t in [
+                result_ev = conn.execute(text("PRAGMA table_info(validation_evidence)"))
+                existing_ev_cols = [row[1] for row in result_ev.fetchall()]
+                if existing_ev_cols:
+                    for col, col_t in [
+                        ("evidence_type", "VARCHAR"),
+                        ("source_cell", "INTEGER"),
+                        ("unit", "VARCHAR"),
+                        ("detection_method", "VARCHAR"),
+                        ("relevant_code", "TEXT"),
+                        ("relevant_output", "TEXT")
+                    ]:
+                        if col not in existing_ev_cols:
+                            conn.execute(text(f"ALTER TABLE validation_evidence ADD COLUMN {col} {col_t}"))
+                    conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+            # PostgreSQL migrations (only execute if PostgreSQL engine)
+            if "postgresql" in str(engine.url):
+                for col in ["baseline_status", "difference_from_baseline", "baseline_value", "extracted_value", "verification_status", "metric_name"]:
+                    try:
+                        conn.execute(text(f"ALTER TABLE validation_evidence ALTER COLUMN {col} TYPE TEXT"))
+                        conn.commit()
+                    except Exception:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+
+                for col, col_type, default_val in [
+                    ("department", "VARCHAR", "'AIML'"),
+                    ("section", "VARCHAR", "'A'"),
+                    ("roll_no", "VARCHAR", "'24AM001'"),
+                    ("use_case", "VARCHAR", "'Traffic Sign Recognition'")
+                ]:
+                    try:
+                        conn.execute(text(f"ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS {col} {col_type} DEFAULT {default_val}"))
+                        conn.commit()
+                    except Exception:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+
+                try:
+                    conn.execute(text("ALTER TABLE student_users ADD COLUMN IF NOT EXISTS assigned_use_case VARCHAR"))
+                    conn.commit()
+                except Exception:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+
+                for col, col_type in [
                     ("evidence_type", "VARCHAR"),
                     ("source_cell", "INTEGER"),
                     ("unit", "VARCHAR"),
@@ -322,45 +379,16 @@ def auto_migrate():
                     ("relevant_code", "TEXT"),
                     ("relevant_output", "TEXT")
                 ]:
-                    if col not in existing_ev_cols:
-                        conn.execute(text(f"ALTER TABLE validation_evidence ADD COLUMN {col} {col_t}"))
-                conn.commit()
-        except Exception:
-            pass
-
-        # PostgreSQL migrations (adds missing columns and widens types in Supabase automatically)
-        try:
-            # Expand VARCHAR(50) columns in validation_evidence to TEXT to avoid StringDataRightTruncation
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN baseline_status TYPE TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN difference_from_baseline TYPE TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN baseline_value TYPE TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN extracted_value TYPE TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN verification_status TYPE TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ALTER COLUMN metric_name TYPE TEXT"))
-            conn.commit()
-        except Exception:
-            pass
-
-        try:
-            # validation_runs
-            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS department VARCHAR DEFAULT 'AIML'"))
-            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS section VARCHAR DEFAULT 'A'"))
-            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS roll_no VARCHAR DEFAULT '24AM001'"))
-            conn.execute(text("ALTER TABLE validation_runs ADD COLUMN IF NOT EXISTS use_case VARCHAR DEFAULT 'Traffic Sign Recognition'"))
-            
-            # student_users
-            conn.execute(text("ALTER TABLE student_users ADD COLUMN IF NOT EXISTS assigned_use_case VARCHAR"))
-            
-            # validation_evidence
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR"))
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS source_cell INTEGER"))
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS unit VARCHAR"))
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS detection_method VARCHAR"))
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS relevant_code TEXT"))
-            conn.execute(text("ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS relevant_output TEXT"))
-            conn.commit()
-        except Exception:
-            pass
+                    try:
+                        conn.execute(text(f"ALTER TABLE validation_evidence ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                        conn.commit()
+                    except Exception:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+    except Exception as e:
+        print("Note on schema auto-migration:", e)
 
 auto_migrate()
 

@@ -6,20 +6,29 @@ from database import (
     AuditLog, StudentUser
 )
 from scoring_engine import recalculate_and_sync_scores
-from main import USE_CASE_DASHBOARD_METRICS, build_metric_evidence_for_run
+try:
+    from backend.main import USE_CASE_DASHBOARD_METRICS, build_metric_evidence_for_run
+except ImportError:
+    from main import USE_CASE_DASHBOARD_METRICS, build_metric_evidence_for_run
 
-def seed_student_submissions():
+def seed_student_submissions(force_refresh: bool = False):
     db = SessionLocal()
     try:
         # Check if runs already exist
         existing_runs = db.query(ValidationRun).count()
-        if existing_runs > 0:
-            print(f"Database already contains {existing_runs} runs. Refreshing with 12 students (15 uploads)...")
+        if existing_runs > 0 and not force_refresh:
+            print(f"Database already contains {existing_runs} validation runs. Preserving existing data.")
+            return
+
+        if existing_runs > 0 and force_refresh:
+            print(f"Database contains {existing_runs} runs. Force refreshing with 12 students (15 uploads)...")
             db.query(ValidationEvidence).delete()
             db.query(ValidationFinding).delete()
             db.query(AuditLog).delete()
             db.query(ValidationRun).delete()
             db.commit()
+        else:
+            print("Database has 0 runs. Seeding 12 sample students with 15 uploads...")
 
         submissions_manifest = [
             # 1. G S ABINIVAS (2 uploads: v1 historical, v2 latest)
@@ -278,4 +287,4 @@ def seed_student_submissions():
         db.close()
 
 if __name__ == "__main__":
-    seed_student_submissions()
+    seed_student_submissions(force_refresh=True)
