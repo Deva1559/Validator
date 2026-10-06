@@ -393,20 +393,6 @@ export const Login: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Quick Test Demo Chip for fast evaluation */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-medium">Quick Test:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStudentName('G S ABINIVAS');
-                      setStudentRegNo('722824148001');
-                    }}
-                    className="text-blue-600 hover:text-blue-700 font-bold hover:underline font-mono"
-                  >
-                    G S ABINIVAS (Roll 1)
-                  </button>
-                </div>
 
                 <div className="flex items-center justify-between text-xs pt-1">
                   <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
@@ -493,20 +479,6 @@ export const Login: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Quick Faculty Key Chip */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-medium">Lead Faculty:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFacultyEmail('karunakaran@aiml.edu');
-                      setFacultyKey('FACULTY_2026_ML_VALIDATOR');
-                    }}
-                    className="text-indigo-600 hover:text-indigo-700 font-bold hover:underline font-mono"
-                  >
-                    Dr. Karunakaran (Autofill Key)
-                  </button>
-                </div>
 
                 <div className="flex items-center justify-between text-xs pt-1">
                   <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
