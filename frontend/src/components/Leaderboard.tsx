@@ -160,9 +160,22 @@ export const Leaderboard: React.FC = () => {
     }
   };
 
+  // Ensure strictly one record per student (latest upload) on the leaderboard
+  const dedupedData = useMemo(() => {
+    const studentMap = new Map<string, any>();
+    data.forEach(item => {
+      const key = (item.roll_no || item.student_name || `id_${item.id}`).trim().toUpperCase();
+      const existing = studentMap.get(key);
+      if (!existing || (item.run_id || item.id || 0) > (existing.run_id || existing.id || 0)) {
+        studentMap.set(key, item);
+      }
+    });
+    return Array.from(studentMap.values());
+  }, [data]);
+
   // Filter and sort items based on activeTab, search, statusFilter, sortBy
   const displayedStudents = useMemo(() => {
-    return data.filter(s => {
+    return dedupedData.filter(s => {
       // Tab filter
       const matchesTab = activeTab === 'OVERALL' || s.use_case === activeTab;
       
@@ -189,17 +202,17 @@ export const Leaderboard: React.FC = () => {
       if (sortBy === 'rank') return (a.overall_rank || 999) - (b.overall_rank || 999);
       return (b.overall_score || 0) - (a.overall_score || 0);
     });
-  }, [data, activeTab, search, statusFilter, sortBy]);
+  }, [dedupedData, activeTab, search, statusFilter, sortBy]);
 
   // Overall KPI statistics
   const stats = useMemo(() => {
-    const total = data.length;
-    const avgScore = total ? (data.reduce((acc, curr) => acc + (curr.overall_score || 0), 0) / total).toFixed(1) : '0';
-    const topScore = total ? Math.max(...data.map(d => d.overall_score || 0)).toFixed(1) : '0';
-    const verifiedCount = data.filter(d => d.validation_status === 'VERIFIED').length;
-    const reviewRequiredCount = data.filter(d => d.validation_status === 'REVIEW REQUIRED' || d.validation_status === 'PARTIALLY VERIFIED').length;
+    const total = dedupedData.length;
+    const avgScore = total ? (dedupedData.reduce((acc, curr) => acc + (curr.overall_score || 0), 0) / total).toFixed(1) : '0';
+    const topScore = total ? Math.max(...dedupedData.map(d => d.overall_score || 0)).toFixed(1) : '0';
+    const verifiedCount = dedupedData.filter(d => d.validation_status === 'VERIFIED').length;
+    const reviewRequiredCount = dedupedData.filter(d => d.validation_status === 'REVIEW REQUIRED' || d.validation_status === 'PARTIALLY VERIFIED').length;
     return { total, avgScore, topScore, verifiedCount, reviewRequiredCount };
-  }, [data]);
+  }, [dedupedData]);
 
   // Current active tab object
   const currentTabObj = USE_CASE_TABS.find(t => t.id === activeTab) || USE_CASE_TABS[0];
@@ -338,8 +351,8 @@ export const Leaderboard: React.FC = () => {
           {USE_CASE_TABS.map(tab => {
             const isActive = activeTab === tab.id;
             const count = tab.id === 'OVERALL' 
-              ? data.length 
-              : data.filter(d => d.use_case === tab.id).length;
+              ? dedupedData.length 
+              : dedupedData.filter(d => d.use_case === tab.id).length;
               
             return (
               <button

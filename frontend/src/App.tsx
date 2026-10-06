@@ -7,7 +7,6 @@ import { Leaderboard } from './components/Leaderboard';
 import { ValidationQueue } from './components/ValidationQueue';
 import { Students } from './components/Students';
 import { Reports } from './components/Reports';
-import { TestCenter } from './components/TestCenter';
 import { Login } from './components/Login';
 import { useAuth } from './context/AuthContext';
 
@@ -19,10 +18,12 @@ function App() {
     return <Login />;
   }
 
-  // Restrict faculty-only administrative views for students, and student-only upload for faculty
+  // Restrict faculty-only administrative views for students, student-only upload for faculty, and remove Test Center
   const safeTab = (isStudent && (activeTab === 'Baselines' || activeTab === 'Validation Queue' || activeTab === 'Test Center'))
     ? 'Dashboard'
-    : (!isStudent && activeTab === 'Upload Projects')
+    : (!isStudent && (activeTab === 'Upload Projects' || activeTab === 'Test Center'))
+    ? 'Dashboard'
+    : activeTab === 'Test Center'
     ? 'Dashboard'
     : activeTab;
 
@@ -38,9 +39,8 @@ function App() {
           {safeTab === 'Validation Queue' && <ValidationQueue />}
           {safeTab === 'Students' && <Students />}
           {safeTab === 'Reports' && <Reports />}
-          {safeTab === 'Test Center' && <TestCenter />}
           
-          {!['Dashboard', 'Upload Projects', 'Leaderboard', 'Baselines', 'Validation Queue', 'Students', 'Reports', 'Test Center'].includes(safeTab) && (
+          {!['Dashboard', 'Upload Projects', 'Leaderboard', 'Baselines', 'Validation Queue', 'Students', 'Reports'].includes(safeTab) && (
             <div className="flex items-center justify-center h-full text-slate-400">
               {safeTab} Content
             </div>

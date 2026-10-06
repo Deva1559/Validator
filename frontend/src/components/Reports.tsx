@@ -122,7 +122,8 @@ export const Reports = () => {
     downloadAnchor.remove();
   };
 
-  // Group by student key to mark which run is latest vs historical
+  // Group by student key to mark which run is latest vs historical.
+  // API returns newest-first so the first occurrence per student IS the latest upload.
   const latestRunIds = new Set<number>();
   const seenStudents = new Set<string>();
   reports.forEach(r => {
@@ -133,14 +134,30 @@ export const Reports = () => {
     }
   });
 
+  // Count of my own uploads (all versions) — used only in student MINE tab
+  const myUploadsCount = reports.filter(
+    r => (r.roll_no || '').trim().toUpperCase() === user?.roll_no?.trim().toUpperCase()
+  ).length;
+
+  // Count of unique students who uploaded (for ALL tab badge)
+  const uniqueUploaderCount = latestRunIds.size;
+
   const filteredReports = reports.filter(r => {
-    // In faculty login: strictly show ONLY the last uploaded file per student
+    // Faculty: strictly show ONLY the latest uploaded file per student
     if (!isStudent && !latestRunIds.has(r.id)) {
       return false;
     }
-    if (isStudent && filterMode === 'MINE' && user?.roll_no) {
-      if ((r.roll_no || '').trim().toUpperCase() !== user.roll_no.trim().toUpperCase()) {
-        return false;
+    if (isStudent) {
+      if (filterMode === 'MINE') {
+        // Student's own audit: show ALL their uploads (every historical version)
+        if ((r.roll_no || '').trim().toUpperCase() !== user?.roll_no?.trim().toUpperCase()) {
+          return false;
+        }
+      } else {
+        // ALL mode: show only the latest submission per student (deduped public view)
+        if (!latestRunIds.has(r.id)) {
+          return false;
+        }
       }
     }
     const q = searchQuery.toLowerCase();
@@ -173,7 +190,7 @@ export const Reports = () => {
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
               Audit Transparency & Evidence Engine
             </span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
               {isStudent ? 'All Uploaded Versions Preserved' : `Latest Submissions (${filteredReports.length} Students)`}
             </span>
           </div>
@@ -207,7 +224,7 @@ export const Reports = () => {
                 filterMode === 'MINE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              My Uploads ({reports.filter(r => (r.roll_no || '').trim().toUpperCase() === user?.roll_no?.trim().toUpperCase()).length})
+              My Uploads ({myUploadsCount})
             </button>
             <button
               onClick={() => setFilterMode('ALL')}
@@ -215,7 +232,7 @@ export const Reports = () => {
                 filterMode === 'ALL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              All Cohort Files ({reports.length})
+              All Cohort Files ({uniqueUploaderCount} Students)
             </button>
           </div>
         )}
@@ -298,30 +315,58 @@ export const Reports = () => {
                     </span>
                   </div>
                 
-                <div className="grid grid-cols-2 gap-3 my-5">
+                {report.use_case && (
+                  <div className="mb-2">
+                    <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Track: {report.use_case}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3 my-4">
                   <div className="well-3d p-3 text-center">
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Final Score</p>
                     <p className="text-2xl font-black text-slate-900">{report.final_score}<span className="text-xs font-bold text-slate-400"> / 100</span></p>
                   </div>
                   <div className="well-3d p-3 text-center">
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Baselines</p>
-                    <p className="text-2xl font-black text-blue-600">{report.baselines_passed_count}<span className="text-xs font-bold text-slate-400"> / 3</span></p>
+                    <p className="text-2xl font-black text-blue-600">{report.baselines_passed_count}<span className="text-xs font-bold text-slate-400"> / {report.total_baselines || 3}</span></p>
                   </div>
                 </div>
 
                 <div className="space-y-1.5 mb-4 text-xs font-medium text-slate-600">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Accuracy:</span>
-                    <span className="font-bold text-slate-800">{report.accuracy !== 'N/A' ? `${report.accuracy}%` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Macro F1:</span>
-                    <span className="font-bold text-slate-800">{report.macro_f1 !== 'N/A' ? `${report.macro_f1}%` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Training Time:</span>
-                    <span className="font-bold text-slate-800">{report.training_time !== 'N/A' ? `${report.training_time}s` : 'N/A'}</span>
-                  </div>
+                  {report.task_metrics && report.task_metrics.length > 0 ? (
+                    report.task_metrics.map((m: any, mIdx: number) => (
+                      <div key={mIdx} className="flex justify-between items-center">
+                        <span className="text-slate-500 font-medium truncate max-w-[150px]">{m.display_name || m.name || m.metric_name}:</span>
+                        <div className="flex items-center gap-1.5 font-mono">
+                          <span className="font-bold text-slate-800">
+                            {m.raw_value !== undefined ? `${m.raw_value}${m.unit || ''}` : 'N/A'}
+                          </span>
+                          {m.passed !== undefined && (
+                            <span className={`text-[10px] font-extrabold px-1 rounded ${m.passed ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                              {m.passed ? '✓' : '✗'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Accuracy:</span>
+                        <span className="font-bold text-slate-800">{report.accuracy !== 'N/A' ? `${report.accuracy}%` : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Macro F1:</span>
+                        <span className="font-bold text-slate-800">{report.macro_f1 !== 'N/A' ? `${report.macro_f1}%` : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Training Time:</span>
+                        <span className="font-bold text-slate-800">{report.training_time !== 'N/A' ? `${report.training_time}s` : 'N/A'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -368,6 +413,7 @@ export const Reports = () => {
                       Student: <span className="text-blue-600 font-bold">{selectedRun.student_name}</span>
                       {selectedRun.roll_no && <> | Roll: <span className="font-mono font-bold text-slate-800">{selectedRun.roll_no}</span></>}
                       {selectedRun.dept && <> | Dept: <span className="font-semibold text-slate-700">{selectedRun.dept} (Sec {selectedRun.sec || 'A'})</span></>}
+                      {selectedRun.use_case && <> | Track: <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">{selectedRun.use_case}</span></>}
                       | Notebook: <span className="font-mono text-slate-700 font-semibold">{selectedRun.filename}</span>
                     </p>
                   </div>
@@ -649,11 +695,23 @@ export const Reports = () => {
                 {/* TAB 2: Metric Evidence */}
                 {activeTab === 'metrics' && (
                   <div className="space-y-6">
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                      <h4 className="text-base font-extrabold text-slate-900 mb-1">Explainable Metric Evidence</h4>
-                      <p className="text-xs text-slate-600">
-                        Every single score is backed by the exact source cell, execution code snippet, raw console output, baseline threshold, and deterministic difference.
-                      </p>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 shadow-xs">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                              Assigned Task
+                            </span>
+                            <span className="text-xs font-bold font-mono text-indigo-700 bg-white border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                              {selectedRun.use_case || 'Traffic Sign Recognition'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-extrabold text-slate-900 mt-1.5">Domain-Specific Dashboard Metric Evidence</h4>
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            Tailored evidence pipeline for {selectedRun.use_case || 'this student\'s assigned ML track'}. Every score is backed by the exact source cell, execution code snippet, raw console output, baseline threshold, and deterministic difference.
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-6">
@@ -832,9 +890,9 @@ export const Reports = () => {
                 {activeTab === 'scoring' && (
                   <div className="space-y-6">
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                      <h4 className="text-base font-extrabold text-slate-900 mb-1">Deterministic Scoring Audit</h4>
+                      <h4 className="text-base font-extrabold text-slate-900 mb-1">Deterministic Scoring Audit: {selectedRun?.use_case || 'Assigned Track'}</h4>
                       <p className="text-xs text-slate-600">
-                        Weighted deterministic scoring model based on active baseline targets (Accuracy 40%, Macro F1 40%, Training Time 20%).
+                        Weighted deterministic scoring model based on active baseline targets for {selectedRun?.use_case || 'this domain'}.
                       </p>
                     </div>
 
@@ -855,9 +913,7 @@ export const Reports = () => {
                                 <td className="p-4 font-bold text-slate-900">{s.metric_name}</td>
                                 <td className="p-4 text-slate-500 text-right font-mono font-medium">{s.weight}%</td>
                                 <td className="p-4 text-slate-600 text-right font-mono text-xs font-semibold">
-                                  {s.metric_name === 'Accuracy' && '>= 85.0%'}
-                                  {s.metric_name === 'Macro F1' && '>= 80.0%'}
-                                  {s.metric_name === 'Training Time' && '<= 60.0s'}
+                                  {s.target || 'Met'}
                                 </td>
                                 <td className="p-4 text-emerald-600 font-extrabold text-right font-mono">+{s.contribution.toFixed(1)}</td>
                               </tr>

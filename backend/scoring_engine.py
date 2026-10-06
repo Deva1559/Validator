@@ -490,6 +490,17 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
     if not latest_runs:
         return {"total_students": 0, "cohorts": {}, "status": "No submissions found"}
 
+    # Purge stale StudentLeaderboardScore records for older run_ids.
+    # When a student re-uploads, their previous run_id score entry must be removed
+    # so they appear exactly ONCE in the leaderboard (only their latest upload counts).
+    from database import StudentLeaderboardScore as _SLS
+    latest_run_ids = {r.id for r in latest_runs}
+    stale_scores = db.query(_SLS).filter(_SLS.run_id.notin_(latest_run_ids)).all()
+    for stale in stale_scores:
+        db.delete(stale)
+    if stale_scores:
+        db.flush()  # Remove stale records before inserting/updating fresh ones
+
     # 4. Process each run to calculate task score, baseline score, validation quality score
     processed_runs = []
     
@@ -615,6 +626,18 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
     for item in ranked_all:
         r_id = item["run_id"]
         
+        # Check by student_roll as well to ensure strict 1-to-1 mapping per student
+        roll = item["student_roll"]
+        if roll:
+            duplicates = db.query(StudentLeaderboardScore).filter(
+                StudentLeaderboardScore.student_roll == roll,
+                StudentLeaderboardScore.run_id != r_id
+            ).all()
+            for dup in duplicates:
+                db.delete(dup)
+            if duplicates:
+                db.flush()
+
         # Check or create StudentLeaderboardScore
         lb_rec = db.query(StudentLeaderboardScore).filter(StudentLeaderboardScore.run_id == r_id).first()
         if not lb_rec:
