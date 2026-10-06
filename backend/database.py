@@ -164,6 +164,127 @@ class AuditLog(Base):
     
     run = relationship("ValidationRun", back_populates="audit_logs")
 
+# ==========================================
+# 7-USE-CASE LEADERBOARD & SCORING MODELS
+# ==========================================
+
+class ScoringConfiguration(Base):
+    __tablename__ = "scoring_configurations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    version = Column(Integer, default=1, index=True)
+    baseline_weight = Column(Float, default=60.0)    # 60%
+    relative_weight = Column(Float, default=25.0)    # 25%
+    validation_weight = Column(Float, default=15.0)  # 15%
+    missing_metric_policy = Column(String, default="RENORMALIZE") # RENORMALIZE, REVIEW_REQUIRED, EXCLUDE
+    min_cohort_normal = Column(Integer, default=15)
+    min_cohort_limited = Column(Integer, default=8)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, default="FACULTY_ADMIN")
+    notes = Column(Text, nullable=True)
+
+class UseCaseMetricConfig(Base):
+    __tablename__ = "use_case_metric_configs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    use_case_id = Column(String, index=True)      # e.g. GTSRB, PLANTVILLAGE, FACE_MASK, PET_SEGMENTATION, GAN, FLICKR8K, PNEUMONIA
+    use_case_name = Column(String, index=True)    # e.g. Traffic Sign Recognition
+    task_type = Column(String, index=True)        # IMAGE_CLASSIFICATION, OBJECT_DETECTION, IMAGE_SEGMENTATION, IMAGE_GENERATION, IMAGE_CAPTIONING, BINARY_CLASSIFICATION
+    dataset_name = Column(String, nullable=True)
+    metric_key = Column(String, index=True)       # accuracy, macro_f1, map50, dice, fid, bleu4, etc.
+    metric_display_name = Column(String)          # Accuracy, Macro F1, mAP@0.5, etc.
+    direction = Column(String, default="higher")  # higher, lower
+    weight = Column(Float, default=0.333)         # Decimal fraction, e.g. 0.50
+    baseline_target = Column(Float, default=85.0)
+    unit = Column(String, default="%")
+    is_primary = Column(Boolean, default=True)
+    version = Column(Integer, default=1)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class MetricBaselineVersion(Base):
+    __tablename__ = "metric_baseline_versions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    use_case_name = Column(String, index=True)
+    metric_key = Column(String, index=True)
+    target_value = Column(Float)
+    direction = Column(String, default="higher")
+    weight = Column(Float)
+    version = Column(Integer, default=1)
+    created_by = Column(String, default="FACULTY")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    reason = Column(String, nullable=True)
+
+class StudentMetricRecord(Base):
+    __tablename__ = "student_metric_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(Integer, ForeignKey("validation_runs.id"), index=True)
+    student_roll = Column(String, index=True)
+    use_case_name = Column(String, index=True)
+    metric_key = Column(String, index=True)
+    raw_value = Column(String, nullable=True)       # e.g. "99.42", "184", "0.35"
+    normalized_value = Column(Float, nullable=True) # 0-100 score relative to baseline
+    direction = Column(String, default="higher")
+    weight = Column(Float, default=1.0)
+    evidence_status = Column(String, default="NOT VERIFIED") # VERIFIED, NOT VERIFIED, REVIEW REQUIRED, SUSPICIOUS
+    evidence_source = Column(String, nullable=True)
+    confidence = Column(Float, default=0.0)
+    cell_reference = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class StudentLeaderboardScore(Base):
+    __tablename__ = "student_leaderboard_scores"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(Integer, ForeignKey("validation_runs.id"), unique=True, index=True)
+    student_roll = Column(String, index=True)
+    student_name = Column(String)
+    department = Column(String, default="AIML")
+    section = Column(String, default="A")
+    use_case_id = Column(String, index=True)
+    use_case_name = Column(String, index=True)
+    task_type = Column(String, index=True)
+    
+    # 3 Core Deterministic Components (0 - 100)
+    task_score = Column(Float, default=0.0)       # Weighted performance of verified metrics
+    baseline_score = Column(Float, default=0.0)   # Direct baseline attainment score (60%)
+    relative_score = Column(Float, default=0.0)   # Percentile within same use-case cohort (25%)
+    validation_score = Column(Float, default=0.0) # Evidence and code reliability score (15%)
+    overall_score = Column(Float, default=0.0)    # Final composite 0 - 100 score
+    
+    # Cohort Context & Reliability
+    cohort_size = Column(Integer, default=1)
+    cohort_status = Column(String, default="NORMAL") # NORMAL, LIMITED, LOW SAMPLE
+    rank_in_cohort = Column(Integer, default=1)
+    overall_rank = Column(Integer, default=1)
+    
+    # Validation flags
+    validation_status = Column(String, default="VERIFIED") # VERIFIED, PARTIALLY VERIFIED, WARNING, REVIEW REQUIRED, NOT VERIFIED
+    has_leakage = Column(Boolean, default=False)
+    has_suspicious_metrics = Column(Boolean, default=False)
+    raw_metrics_json = Column(Text, nullable=True)
+    score_breakdown_json = Column(Text, nullable=True)
+    
+    # Auditability & Versioning
+    formula_version = Column(String, default="v2.0-deterministic")
+    scoring_version = Column(Integer, default=1)
+    baseline_version = Column(Integer, default=1)
+    configuration_version = Column(Integer, default=1)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class LeaderboardSnapshot(Base):
+    __tablename__ = "leaderboard_snapshots"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_name = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    total_students = Column(Integer, default=0)
+    scores_json = Column(Text)
+    config_version = Column(Integer, default=1)
+    created_by = Column(String, default="SYSTEM")
+
 Base.metadata.create_all(bind=engine)
 
 # Auto-migrate schema
@@ -386,4 +507,83 @@ def seed_130_students():
         db.close()
 
 seed_130_students()
+
+DEFAULT_USE_CASE_METRICS = [
+    # 1. Traffic Sign Recognition
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "accuracy", "metric_display_name": "Accuracy", "direction": "higher", "weight": 0.50, "baseline_target": 90.0, "unit": "%"},
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "macro_f1", "metric_display_name": "Macro-F1", "direction": "higher", "weight": 0.35, "baseline_target": 88.0, "unit": "%"},
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "training_time", "metric_display_name": "Training Time", "direction": "lower", "weight": 0.15, "baseline_target": 60.0, "unit": "s"},
+
+    # 2. Crop Leaf Disease Classification
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "accuracy", "metric_display_name": "Accuracy", "direction": "higher", "weight": 0.45, "baseline_target": 90.0, "unit": "%"},
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "macro_f1", "metric_display_name": "Macro-F1", "direction": "higher", "weight": 0.40, "baseline_target": 88.0, "unit": "%"},
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "confusion_matrix_quality", "metric_display_name": "Confusion Matrix Quality", "direction": "higher", "weight": 0.15, "baseline_target": 90.0, "unit": "%"},
+
+    # 3. Face Mask Detection
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "map50", "metric_display_name": "mAP@0.5", "direction": "higher", "weight": 0.50, "baseline_target": 88.0, "unit": "%"},
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "precision", "metric_display_name": "Precision", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "recall", "metric_display_name": "Recall", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+
+    # 4. Pet Image Segmentation
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "dice", "metric_display_name": "Dice Score", "direction": "higher", "weight": 0.45, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "iou", "metric_display_name": "IoU", "direction": "higher", "weight": 0.35, "baseline_target": 80.0, "unit": "%"},
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "pixel_accuracy", "metric_display_name": "Pixel Accuracy", "direction": "higher", "weight": 0.20, "baseline_target": 90.0, "unit": "%"},
+
+    # 5. Image Generation with GANs
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "fid", "metric_display_name": "FID", "direction": "lower", "weight": 0.50, "baseline_target": 25.0, "unit": "score"},
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "generator_loss_stability", "metric_display_name": "G-Loss Stability", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "discriminator_loss_stability", "metric_display_name": "D-Loss Stability", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+
+    # 6. Image Captioning
+    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu1", "metric_display_name": "BLEU-1", "direction": "higher", "weight": 0.40, "baseline_target": 65.0, "unit": "score"},
+    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu4", "metric_display_name": "BLEU-4", "direction": "higher", "weight": 0.60, "baseline_target": 35.0, "unit": "score"},
+
+    # 7. Pneumonia Detection from Chest X-Rays
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "recall", "metric_display_name": "Recall", "direction": "higher", "weight": 0.40, "baseline_target": 92.0, "unit": "%"},
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "auc", "metric_display_name": "AUC-ROC", "direction": "higher", "weight": 0.30, "baseline_target": 90.0, "unit": "%"},
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "f1", "metric_display_name": "F1-Score", "direction": "higher", "weight": 0.30, "baseline_target": 88.0, "unit": "%"}
+]
+
+def seed_use_case_metric_configs():
+    db = SessionLocal()
+    try:
+        existing = {(m.use_case_name, m.metric_key): m for m in db.query(UseCaseMetricConfig).all()}
+        for m in DEFAULT_USE_CASE_METRICS:
+            key = (m["use_case_name"], m["metric_key"])
+            if key not in existing:
+                db.add(UseCaseMetricConfig(
+                    use_case_id=m["use_case_id"],
+                    use_case_name=m["use_case_name"],
+                    task_type=m["task_type"],
+                    dataset_name=m["dataset_name"],
+                    metric_key=m["metric_key"],
+                    metric_display_name=m["metric_display_name"],
+                    direction=m["direction"],
+                    weight=m["weight"],
+                    baseline_target=m["baseline_target"],
+                    unit=m["unit"]
+                ))
+        
+        # Also seed default global scoring configuration if absent
+        cfg = db.query(ScoringConfiguration).filter(ScoringConfiguration.is_active == True).first()
+        if not cfg:
+            db.add(ScoringConfiguration(
+                version=1,
+                baseline_weight=60.0,
+                relative_weight=25.0,
+                validation_weight=15.0,
+                missing_metric_policy="RENORMALIZE",
+                min_cohort_normal=15,
+                min_cohort_limited=8,
+                is_active=True,
+                notes="Initial deterministic 7-use-case scoring policy (60/25/15)"
+            ))
+        db.commit()
+    except Exception as e:
+        print("Note on seeding metric configs:", e)
+        db.rollback()
+    finally:
+        db.close()
+
+seed_use_case_metric_configs()
 

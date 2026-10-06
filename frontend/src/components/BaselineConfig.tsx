@@ -99,6 +99,72 @@ const DEFAULT_7_BASELINES: UseCaseBaseline[] = [
   }
 ];
 
+// Per-use-case metric labels mapped to the 3 stored fields: accuracy, macro_f1, training_time
+const UC_METRIC_CONFIG: Record<string, {
+  field1: { label: string; desc: string; unit: string; color: string };
+  field2: { label: string; desc: string; unit: string; color: string };
+  field3: { label: string; desc: string; unit: string; color: string };
+  dir1: string; dir2: string; dir3: string;
+}> = {
+  "Traffic Sign Recognition": {
+    field1: { label: "Target Accuracy",    desc: "Min classification accuracy across all 43 road sign classes",        unit: "%", color: "blue" },
+    field2: { label: "Target Macro-F1",    desc: "Unweighted F1 guarding rare sign classes from majority class bias",   unit: "%", color: "indigo" },
+    field3: { label: "Max Training Time",  desc: "Maximum deterministic pipeline runtime / latency budget",             unit: "s", color: "purple" },
+    dir1: "≥", dir2: "≥", dir3: "≤"
+  },
+  "Crop Leaf Disease Classification": {
+    field1: { label: "Target Accuracy",    desc: "Min diagnostic accuracy across 38 crop foliar pathology classes",    unit: "%", color: "emerald" },
+    field2: { label: "Target Macro-F1",    desc: "Guards rare fungal lesions from majority healthy-leaf class bias",    unit: "%", color: "teal" },
+    field3: { label: "Confusion Matrix %", desc: "Minimum diagonal dominance threshold across 38×38 class matrix",     unit: "%", color: "cyan" },
+    dir1: "≥", dir2: "≥", dir3: "≥"
+  },
+  "Face Mask Detection": {
+    field1: { label: "Min mAP@0.5",        desc: "Mean Average Precision at IoU ≥ 0.50 bounding box threshold",       unit: "%", color: "cyan" },
+    field2: { label: "Min Precision",      desc: "Low false-alarm rate: faces incorrectly flagged as unmasked",        unit: "%", color: "blue" },
+    field3: { label: "Min Recall",         desc: "Strict sensitivity — no unmasked or incorrectly worn mask missed",   unit: "%", color: "indigo" },
+    dir1: "≥", dir2: "≥", dir3: "≥"
+  },
+  "Pet Image Segmentation": {
+    field1: { label: "Min Dice Coefficient", desc: "Sørensen–Dice contour overlap for pet foreground mask pixels",     unit: "%", color: "purple" },
+    field2: { label: "Min IoU (Jaccard)",    desc: "Intersection-over-union across foreground, background & boundary", unit: "%", color: "indigo" },
+    field3: { label: "Min Pixel Accuracy",   desc: "Total correctly labeled pixels across the full trimap mask",       unit: "%", color: "blue" },
+    dir1: "≥", dir2: "≥", dir3: "≥"
+  },
+  "Image Generation with GANs": {
+    field1: { label: "Max FID Score",      desc: "Fréchet Inception Distance ceiling — lower is better quality",      unit: "",  color: "pink" },
+    field2: { label: "Generator Loss",     desc: "Target G loss indicating stable minimax convergence",               unit: "",  color: "rose" },
+    field3: { label: "Discriminator Loss", desc: "Target D loss balanced without overpowering the generator",         unit: "",  color: "purple" },
+    dir1: "≤", dir2: "≈", dir3: "≈"
+  },
+  "Image Captioning": {
+    field1: { label: "Min BLEU-1",         desc: "Unigram lexical precision against human ground-truth captions",     unit: "%", color: "amber" },
+    field2: { label: "Min BLEU-4",         desc: "4-gram phrase fluency verifying syntactic coherence & flow",        unit: "%", color: "orange" },
+    field3: { label: "Min CIDEr Score",    desc: "Consensus-based image description evaluation (higher = better)",   unit: "",  color: "yellow" },
+    dir1: "≥", dir2: "≥", dir3: "≥"
+  },
+  "Pneumonia Detection from Chest X-Rays": {
+    field1: { label: "Min Recall (Sensitivity)", desc: "Clinical priority: strictly limits false-negative pneumonia omissions", unit: "%", color: "rose" },
+    field2: { label: "Min ROC-AUC",              desc: "Area under ROC curve measuring separation across clinical thresholds",  unit: "",  color: "red" },
+    field3: { label: "Min F1-Score",             desc: "Harmonic balance of high precision alongside maximum sensitivity",     unit: "%", color: "orange" },
+    dir1: "≥", dir2: "≥", dir3: "≥"
+  }
+};
+
+const COLOR_MAP: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+  blue:    { bg: "bg-blue-50",    text: "text-blue-700",    border: "border-blue-200",    badge: "bg-blue-100 text-blue-800 border-blue-200" },
+  indigo:  { bg: "bg-indigo-50",  text: "text-indigo-700",  border: "border-indigo-200",  badge: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  purple:  { bg: "bg-purple-50",  text: "text-purple-700",  border: "border-purple-200",  badge: "bg-purple-100 text-purple-800 border-purple-200" },
+  emerald: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  teal:    { bg: "bg-teal-50",    text: "text-teal-700",    border: "border-teal-200",    badge: "bg-teal-100 text-teal-800 border-teal-200" },
+  cyan:    { bg: "bg-cyan-50",    text: "text-cyan-700",    border: "border-cyan-200",    badge: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+  pink:    { bg: "bg-pink-50",    text: "text-pink-700",    border: "border-pink-200",    badge: "bg-pink-100 text-pink-800 border-pink-200" },
+  rose:    { bg: "bg-rose-50",    text: "text-rose-700",    border: "border-rose-200",    badge: "bg-rose-100 text-rose-800 border-rose-200" },
+  red:     { bg: "bg-red-50",     text: "text-red-700",     border: "border-red-200",     badge: "bg-red-100 text-red-800 border-red-200" },
+  amber:   { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",   badge: "bg-amber-100 text-amber-800 border-amber-200" },
+  orange:  { bg: "bg-orange-50",  text: "text-orange-700",  border: "border-orange-200",  badge: "bg-orange-100 text-orange-800 border-orange-200" },
+  yellow:  { bg: "bg-yellow-50",  text: "text-yellow-700",  border: "border-yellow-200",  badge: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+};
+
 export const BaselineConfig = () => {
   const [useCases, setUseCases] = useState<UseCaseBaseline[]>(DEFAULT_7_BASELINES);
   const [loading, setLoading] = useState(true);
@@ -338,13 +404,13 @@ export const BaselineConfig = () => {
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs font-bold font-mono">
           <span className="px-3 py-1.5 rounded-xl bg-blue-100/80 text-blue-800 border border-blue-200">
-            Accuracy: 40% Weight
+            Metric 1: Primary Score
           </span>
           <span className="px-3 py-1.5 rounded-xl bg-indigo-100/80 text-indigo-800 border border-indigo-200">
-            Macro F1: 40% Weight
+            Metric 2: Secondary Score
           </span>
           <span className="px-3 py-1.5 rounded-xl bg-purple-100/80 text-purple-800 border border-purple-200">
-            Runtime: 20% Weight
+            Metric 3: Auxiliary / Quality
           </span>
         </div>
       </div>
@@ -406,111 +472,89 @@ export const BaselineConfig = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-blue-600" />
-                    Quota: {uc.student_quota || 15} Students
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-blue-600" />
+                    3 Evaluation Metrics
                   </span>
                 </div>
               </div>
 
-              {/* Individual Input Fields Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* 1. Student Quota Field */}
-                <div className="space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-blue-600" /> Student Quota
-                    </label>
-                    <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono">
-                      Cap
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    step="1"
-                    value={uc.student_quota || 15}
-                    onChange={(e) => handleFieldChange(actualIndex, 'student_quota', Number(e.target.value))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-blue-500 shadow-inner"
-                  />
-                  <p className="text-[11px] text-slate-400">Total students allocated to this specific use case</p>
-                </div>
+              {/* Per-Use-Case Metric Input Fields (3 columns, no quota) */}
+              {(() => {
+                const cfg = UC_METRIC_CONFIG[uc.name] || UC_METRIC_CONFIG["Traffic Sign Recognition"];
+                const c1 = COLOR_MAP[cfg.field1.color] || COLOR_MAP['blue'];
+                const c2 = COLOR_MAP[cfg.field2.color] || COLOR_MAP['indigo'];
+                const c3 = COLOR_MAP[cfg.field3.color] || COLOR_MAP['purple'];
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Metric Field 1 */}
+                    <div className={`space-y-2 p-5 rounded-2xl border ${c1.border} bg-gradient-to-br from-white to-slate-50/60 shadow-xs`}>
+                      <div className="flex justify-between items-center">
+                        <label className={`text-xs font-bold flex items-center gap-1.5 ${c1.text}`}>
+                          <Target className="w-3.5 h-3.5" /> {cfg.field1.label}{cfg.field1.unit ? ` (${cfg.field1.unit})` : ''}
+                        </label>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono border ${c1.badge}`}>
+                          {cfg.dir1}
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max={cfg.field1.unit === 's' ? 9999 : 100}
+                        value={uc.accuracy}
+                        onChange={(e) => handleFieldChange(actualIndex, 'accuracy', Number(e.target.value))}
+                        className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none shadow-inner ${c1.border} focus:border-blue-500`}
+                      />
+                      <p className="text-[11px] text-slate-400 leading-snug">{cfg.field1.desc}</p>
+                    </div>
 
-                {/* 2. Target Accuracy Field */}
-                <div className="space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5 text-blue-600" /> Target Accuracy (%)
-                    </label>
-                    <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono">
-                      ≥ Min
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="100"
-                    value={uc.accuracy}
-                    onChange={(e) => handleFieldChange(actualIndex, 'accuracy', Number(e.target.value))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-blue-500 shadow-inner"
-                  />
-                  <p className="text-[11px] text-slate-400">Minimum classification accuracy for passing</p>
-                </div>
+                    {/* Metric Field 2 */}
+                    <div className={`space-y-2 p-5 rounded-2xl border ${c2.border} bg-gradient-to-br from-white to-slate-50/60 shadow-xs`}>
+                      <div className="flex justify-between items-center">
+                        <label className={`text-xs font-bold flex items-center gap-1.5 ${c2.text}`}>
+                          <TrendingUp className="w-3.5 h-3.5" /> {cfg.field2.label}{cfg.field2.unit ? ` (${cfg.field2.unit})` : ''}
+                        </label>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono border ${c2.badge}`}>
+                          {cfg.dir2}
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max={cfg.field2.unit === 's' ? 9999 : 100}
+                        value={uc.macro_f1}
+                        onChange={(e) => handleFieldChange(actualIndex, 'macro_f1', Number(e.target.value))}
+                        className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none shadow-inner ${c2.border} focus:border-blue-500`}
+                      />
+                      <p className="text-[11px] text-slate-400 leading-snug">{cfg.field2.desc}</p>
+                    </div>
 
-                {/* 3. Target Macro F1 Field */}
-                <div className="space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-indigo-600" /> Target Macro F1 (%)
-                    </label>
-                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-mono">
-                      ≥ Min
-                    </span>
+                    {/* Metric Field 3 */}
+                    <div className={`space-y-2 p-5 rounded-2xl border ${c3.border} bg-gradient-to-br from-white to-slate-50/60 shadow-xs`}>
+                      <div className="flex justify-between items-center">
+                        <label className={`text-xs font-bold flex items-center gap-1.5 ${c3.text}`}>
+                          <Clock className="w-3.5 h-3.5" /> {cfg.field3.label}{cfg.field3.unit ? ` (${cfg.field3.unit})` : ''}
+                        </label>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono border ${c3.badge}`}>
+                          {cfg.dir3}
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        step={cfg.dir3 === '≤' ? 1 : 0.5}
+                        min="0"
+                        max={cfg.field3.unit === 's' ? 9999 : 100}
+                        value={uc.training_time}
+                        onChange={(e) => handleFieldChange(actualIndex, 'training_time', Number(e.target.value))}
+                        className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none shadow-inner ${c3.border} focus:border-blue-500`}
+                      />
+                      <p className="text-[11px] text-slate-400 leading-snug">{cfg.field3.desc}</p>
+                    </div>
                   </div>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="100"
-                    value={uc.macro_f1}
-                    onChange={(e) => handleFieldChange(actualIndex, 'macro_f1', Number(e.target.value))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-blue-500 shadow-inner"
-                  />
-                  <p className="text-[11px] text-slate-400">Harmonic mean evaluating multi-class balance</p>
-                </div>
-
-                {/* 4. Training Time & Direction Field */}
-                <div className="space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-purple-600" /> Max Training Time (s)
-                    </label>
-                    <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-mono">
-                      Seconds
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={uc.training_time}
-                    onChange={(e) => handleFieldChange(actualIndex, 'training_time', Number(e.target.value))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-blue-500 shadow-inner"
-                  />
-                  <div className="pt-1">
-                    <select
-                      value={uc.time_comparison || 'lower'}
-                      onChange={(e) => handleFieldChange(actualIndex, 'time_comparison', e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="lower">≤ Lower duration is better (Faster)</option>
-                      <option value="higher">≥ Higher duration expected</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </motion.div>
           );
         })}

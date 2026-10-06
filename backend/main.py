@@ -2,14 +2,24 @@ import os
 import json
 import asyncio
 import traceback
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request, HTTPException, Body
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog, StudentUser, FacultyUser, UseCaseConfig
+from database import (
+    SessionLocal, ValidationRun, ValidationEvidence, ValidationFinding, 
+    ScoringBreakdown, AuditLog, StudentUser, FacultyUser, UseCaseConfig,
+    ScoringConfiguration, UseCaseMetricConfig, MetricBaselineVersion,
+    StudentMetricRecord, StudentLeaderboardScore, LeaderboardSnapshot
+)
 from evidence import analyze_notebook_evidence
+from scoring_engine import (
+    recalculate_and_sync_scores, CANONICAL_METRIC_MAP,
+    calculate_overall_performance_score
+)
 
 app = FastAPI(title="ModelValidator AI API")
 
@@ -232,11 +242,16 @@ def clear_all_validation_data(
             detail="Unauthorized: Valid Faculty Security Key is required to purge testing data."
         )
 
+    db.query(StudentLeaderboardScore).delete()
+    db.query(StudentMetricRecord).delete()
+    db.query(LeaderboardSnapshot).delete()
     db.query(ValidationEvidence).delete()
     db.query(ValidationFinding).delete()
     db.query(ScoringBreakdown).delete()
     db.query(AuditLog).delete()
     db.query(ValidationRun).delete()
+    # Remove test mock student '24AM001' if present
+    db.query(StudentUser).filter(StudentUser.roll_no == '24AM001').delete()
     db.commit()
 
     # Reset sequences so next runs start counting strictly from 1
@@ -571,6 +586,7 @@ async def upload_notebooks(
             # Commit run, audit log, and all extracted evidence atomically
             db.commit()
             db.refresh(run)
+            recalculate_and_sync_scores(db)
             
             results.append({
                 "id": run.id, 
@@ -686,6 +702,7 @@ def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optio
                     ev.baseline_status = "Within target threshold" if (time_val <= target_time if time_comparison == 'lower' else time_val >= target_time) else "Exceeds target limit"
                     
     db.commit()
+    recalculate_and_sync_scores(db)
 
 def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines, db: Optional[Session] = None, run_number: Optional[int] = None):
     acc_val = None
@@ -795,17 +812,459 @@ def get_latest_runs_by_student(runs: List[ValidationRun]) -> List[ValidationRun]
         latest_by_student[key] = r
     return list(latest_by_student.values())
 
+# =====================================================================
+# REDESIGNED 2-LEVEL LEADERBOARD & DETERMINISTIC SCORING APIS
+# =====================================================================
+
+def format_rich_leaderboard_row(score: StudentLeaderboardScore, run: Optional[ValidationRun] = None) -> Dict[str, Any]:
+    """Formats a StudentLeaderboardScore record into a complete API response payload."""
+    raw_metrics = []
+    if score.raw_metrics_json:
+        try:
+            raw_metrics = json.loads(score.raw_metrics_json)
+        except Exception:
+            raw_metrics = []
+            
+    breakdown = {}
+    if score.score_breakdown_json:
+        try:
+            breakdown = json.loads(score.score_breakdown_json)
+        except Exception:
+            breakdown = {}
+            
+    # Extract common metrics for table preview
+    metric_lookup = {m["metric_key"]: m for m in raw_metrics}
+    
+    # Backward compatibility defaults
+    acc_metric = metric_lookup.get("accuracy")
+    f1_metric = metric_lookup.get("macro_f1")
+    time_metric = metric_lookup.get("training_time")
+    
+    return {
+        "id": score.run_id,
+        "run_id": score.run_id,
+        "rank": score.overall_rank,
+        "overall_rank": score.overall_rank,
+        "rank_in_cohort": score.rank_in_cohort,
+        "student_name": score.student_name,
+        "roll_no": score.student_roll,
+        "dept": score.department or "AIML",
+        "sec": score.section or "A",
+        "use_case": score.use_case_name,
+        "use_case_id": score.use_case_id,
+        "task_type": score.task_type,
+        "filename": run.filename if run else f"{score.student_roll}_notebook.ipynb",
+        "created_at": run.created_at.strftime("%Y-%m-%d %H:%M") if run and run.created_at else "",
+        
+        # 3 Deterministic Scoring Components (0-100)
+        "task_score": round(score.task_score, 2),
+        "baseline_score": round(score.baseline_score, 2),
+        "relative_score": round(score.relative_score, 2),
+        "validation_score": round(score.validation_score, 2),
+        "overall_score": round(score.overall_score, 2),
+        "final_score": round(score.overall_score, 2),
+        "workflow_score": round(score.validation_score, 2),
+        
+        # Cohort Reliability
+        "cohort_size": score.cohort_size,
+        "cohort_status": score.cohort_status, # NORMAL, LIMITED, LOW SAMPLE
+        
+        # Validation Flags
+        "validation_status": score.validation_status,
+        "status": score.validation_status,
+        "has_leakage": score.has_leakage,
+        "has_suspicious_metrics": score.has_suspicious_metrics,
+        
+        # Full Raw and Normalized Evidence
+        "raw_metrics": raw_metrics,
+        "score_breakdown": breakdown,
+        
+        # Backwards-compatible legacy fields
+        "accuracy": f"{acc_metric['raw_value']}%" if acc_metric and acc_metric.get("raw_value") is not None else "N/A",
+        "macro_f1": f"{f1_metric['raw_value']}%" if f1_metric and f1_metric.get("raw_value") is not None else "N/A",
+        "training_time": f"{time_metric['raw_value']}s" if time_metric and time_metric.get("raw_value") is not None else "N/A",
+        "accuracy_target": acc_metric.get("target") if acc_metric else 90.0,
+        "macro_f1_target": f1_metric.get("target") if f1_metric else 88.0,
+        "training_time_target": time_metric.get("target") if time_metric else 60.0,
+        "passed_baselines": {
+            "accuracy": acc_metric.get("verified", False) and acc_metric.get("score", 0) >= 100.0 if acc_metric else False,
+            "macro_f1": f1_metric.get("verified", False) and f1_metric.get("score", 0) >= 100.0 if f1_metric else False,
+            "training_time": time_metric.get("verified", False) and time_metric.get("score", 0) >= 100.0 if time_metric else False
+        },
+        "baselines_passed_count": sum(1 for m in raw_metrics if m.get("verified") and m.get("score", 0) >= 100.0),
+        "total_baselines": len(raw_metrics)
+    }
+
 @app.get("/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db)):
-    """Leaderboard displays only the latest uploaded file per student."""
+@app.get("/api/leaderboard/overall")
+def get_overall_leaderboard(
+    use_case: Optional[str] = None,
+    task_type: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = "overall_score",
+    sort_order: Optional[str] = "desc",
+    db: Session = Depends(get_db)
+):
+    """
+    LEVEL 2: Overall 130-student leaderboard.
+    All students across all 7 use cases ranked on a common deterministic 0-100 Overall Performance Score.
+    """
     try:
-        runs = db.query(ValidationRun).all()
-        latest_runs = get_latest_runs_by_student(runs)
-        sorted_runs = sorted(latest_runs, key=lambda x: x.final_score or 0, reverse=True)
-        return [format_run_data(r, i + 1, current_baselines, db) for i, r in enumerate(sorted_runs)]
+        # Check if score cache exists; if empty, compute it once
+        score_count = db.query(StudentLeaderboardScore).count()
+        if score_count == 0:
+            recalculate_and_sync_scores(db)
+            
+        query = db.query(StudentLeaderboardScore)
+        
+        if use_case and use_case != "ALL":
+            query = query.filter(StudentLeaderboardScore.use_case_name == use_case)
+        if task_type and task_type != "ALL":
+            query = query.filter(StudentLeaderboardScore.task_type == task_type)
+        if status and status != "ALL":
+            query = query.filter(StudentLeaderboardScore.validation_status == status)
+            
+        scores = query.all()
+        
+        # Prefetch runs for filenames and timestamps
+        run_ids = [s.run_id for s in scores if s.run_id]
+        runs_map = {r.id: r for r in db.query(ValidationRun).filter(ValidationRun.id.in_(run_ids)).all()} if run_ids else {}
+        
+        results = [format_rich_leaderboard_row(s, runs_map.get(s.run_id)) for s in scores]
+        
+        # Apply search filter if provided
+        if search and search.strip():
+            q = search.strip().lower()
+            results = [
+                r for r in results 
+                if q in r["student_name"].lower() or q in r["roll_no"].lower() or q in r["use_case"].lower()
+            ]
+            
+        # Deterministic sorting
+        reverse_flag = (sort_order.lower() == "desc")
+        if sort_by in ["overall_score", "final_score"]:
+            results.sort(key=lambda x: (x["overall_score"], x["validation_score"], x["baseline_score"]), reverse=reverse_flag)
+        elif sort_by == "task_score":
+            results.sort(key=lambda x: (x["task_score"], x["overall_score"]), reverse=reverse_flag)
+        elif sort_by == "validation_score":
+            results.sort(key=lambda x: (x["validation_score"], x["overall_score"]), reverse=reverse_flag)
+        elif sort_by == "baseline_score":
+            results.sort(key=lambda x: (x["baseline_score"], x["overall_score"]), reverse=reverse_flag)
+        elif sort_by == "rank":
+            results.sort(key=lambda x: x["overall_rank"], reverse=(not reverse_flag))
+            
+        return results
     except Exception as e:
         traceback.print_exc()
         return []
+
+@app.get("/api/leaderboard/use-cases")
+def get_use_cases_summary(db: Session = Depends(get_db)):
+    """Returns metadata and cohort statistics for each of the 7 use cases."""
+    try:
+        metric_configs = db.query(UseCaseMetricConfig).all()
+        by_uc = {}
+        for m in metric_configs:
+            if m.use_case_name not in by_uc:
+                by_uc[m.use_case_name] = {
+                    "use_case_id": m.use_case_id,
+                    "use_case_name": m.use_case_name,
+                    "task_type": m.task_type,
+                    "dataset_name": m.dataset_name,
+                    "metrics": []
+                }
+            by_uc[m.use_case_name]["metrics"].append({
+                "metric_key": m.metric_key,
+                "display_name": m.metric_display_name,
+                "direction": m.direction,
+                "weight": m.weight,
+                "baseline_target": m.baseline_target,
+                "unit": m.unit
+            })
+            
+        # Get cohort stats from student_leaderboard_scores
+        scores = db.query(StudentLeaderboardScore).all()
+        cohort_groups = {}
+        for s in scores:
+            if s.use_case_name not in cohort_groups:
+                cohort_groups[s.use_case_name] = []
+            cohort_groups[s.use_case_name].append(s)
+            
+        summaries = []
+        for uc_name, meta in by_uc.items():
+            c_scores = cohort_groups.get(uc_name, [])
+            count = len(c_scores)
+            avg_overall = round(sum(s.overall_score for s in c_scores) / max(1, count), 2) if count else 0.0
+            avg_task = round(sum(s.task_score for s in c_scores) / max(1, count), 2) if count else 0.0
+            top_st = sorted(c_scores, key=lambda x: x.overall_score, reverse=True)[0] if c_scores else None
+            
+            status = "NORMAL" if count >= 15 else ("LIMITED" if count >= 8 else "LOW SAMPLE")
+            
+            summaries.append({
+                **meta,
+                "student_count": count,
+                "avg_overall_score": avg_overall,
+                "avg_task_score": avg_task,
+                "cohort_status": status,
+                "top_student": {
+                    "name": top_st.student_name,
+                    "roll_no": top_st.student_roll,
+                    "overall_score": top_st.overall_score
+                } if top_st else None
+            })
+            
+        return summaries
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.get("/api/leaderboard/use-case/{use_case_id_or_name}")
+def get_task_specific_leaderboard(use_case_id_or_name: str, db: Session = Depends(get_db)):
+    """
+    LEVEL 1: Task-specific leaderboard for a single ML use case.
+    Ranks students ONLY within this task and shows domain-specific raw metrics.
+    """
+    try:
+        # Match either by use_case_name or use_case_id
+        scores = db.query(StudentLeaderboardScore).filter(
+            (StudentLeaderboardScore.use_case_name == use_case_id_or_name) |
+            (StudentLeaderboardScore.use_case_id == use_case_id_or_name)
+        ).order_by(StudentLeaderboardScore.rank_in_cohort.asc()).all()
+        
+        run_ids = [s.run_id for s in scores if s.run_id]
+        runs_map = {r.id: r for r in db.query(ValidationRun).filter(ValidationRun.id.in_(run_ids)).all()} if run_ids else {}
+        
+        return [format_rich_leaderboard_row(s, runs_map.get(s.run_id)) for s in scores]
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.get("/api/students/{roll_no}/score-breakdown")
+def get_student_score_breakdown(roll_no: str, db: Session = Depends(get_db)):
+    """
+    Returns full explainability audit data for a single student's score.
+    Includes Baseline (60%), Relative (25%), Validation (15%) breakdown + cell references and evidence.
+    """
+    try:
+        clean_roll = roll_no.strip().upper()
+        score = db.query(StudentLeaderboardScore).filter(
+            StudentLeaderboardScore.student_roll == clean_roll
+        ).first()
+        
+        if not score:
+            # Fallback by roll case-insensitive
+            score = db.query(StudentLeaderboardScore).filter(
+                StudentLeaderboardScore.student_roll.ilike(f"%{clean_roll}%")
+            ).first()
+            
+        if not score:
+            raise HTTPException(status_code=404, detail=f"No leaderboard record found for student {roll_no}")
+            
+        run = db.query(ValidationRun).filter(ValidationRun.id == score.run_id).first()
+        evidence_records = db.query(ValidationEvidence).filter(ValidationEvidence.run_id == score.run_id).all() if score.run_id else []
+        findings = db.query(ValidationFinding).filter(ValidationFinding.run_id == score.run_id).all() if score.run_id else []
+        
+        raw_metrics = []
+        if score.raw_metrics_json:
+            try:
+                raw_metrics = json.loads(score.raw_metrics_json)
+            except Exception:
+                pass
+                
+        breakdown = {}
+        if score.score_breakdown_json:
+            try:
+                breakdown = json.loads(score.score_breakdown_json)
+            except Exception:
+                pass
+                
+        evidence_details = []
+        for ev in evidence_records:
+            evidence_details.append({
+                "metric_name": ev.metric_name,
+                "evidence_type": ev.evidence_type,
+                "extracted_value": ev.extracted_value,
+                "source_cell": ev.source_cell,
+                "detection_method": ev.detection_method,
+                "relevant_code": ev.relevant_code,
+                "relevant_output": ev.relevant_output,
+                "confidence_score": ev.confidence_score,
+                "verification_status": ev.verification_status,
+                "baseline_value": ev.baseline_value,
+                "difference_from_baseline": ev.difference_from_baseline,
+                "baseline_status": ev.baseline_status
+            })
+            
+        findings_details = [
+            {"type": f.finding_type, "title": f.title, "description": f.description, "source": f.source}
+            for f in findings
+        ]
+        
+        return {
+            "student_name": score.student_name,
+            "roll_no": score.student_roll,
+            "department": score.department,
+            "section": score.section,
+            "use_case_name": score.use_case_name,
+            "use_case_id": score.use_case_id,
+            "task_type": score.task_type,
+            "filename": run.filename if run else "notebook.ipynb",
+            "overall_rank": score.overall_rank,
+            "rank_in_cohort": score.rank_in_cohort,
+            "cohort_size": score.cohort_size,
+            "cohort_status": score.cohort_status,
+            "validation_status": score.validation_status,
+            
+            # Scores
+            "overall_score": score.overall_score,
+            "task_score": score.task_score,
+            "baseline_score": score.baseline_score,
+            "relative_score": score.relative_score,
+            "validation_score": score.validation_score,
+            
+            # Mathematical Breakdown
+            "breakdown": breakdown,
+            "metrics": raw_metrics,
+            "evidence": evidence_details,
+            "findings": findings_details
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scoring/config")
+def get_scoring_configuration(db: Session = Depends(get_db)):
+    """Returns current active scoring configuration and use case metric settings."""
+    try:
+        cfg = db.query(ScoringConfiguration).filter(ScoringConfiguration.is_active == True).order_by(ScoringConfiguration.version.desc()).first()
+        if not cfg:
+            cfg = ScoringConfiguration(
+                version=1, baseline_weight=60.0, relative_weight=25.0, validation_weight=15.0,
+                missing_metric_policy="RENORMALIZE", min_cohort_normal=15, min_cohort_limited=8
+            )
+            db.add(cfg)
+            db.commit()
+            
+        metric_configs = db.query(UseCaseMetricConfig).all()
+        by_uc = {}
+        for m in metric_configs:
+            if m.use_case_name not in by_uc:
+                by_uc[m.use_case_name] = {
+                    "use_case_id": m.use_case_id,
+                    "task_type": m.task_type,
+                    "dataset_name": m.dataset_name,
+                    "metrics": []
+                }
+            by_uc[m.use_case_name]["metrics"].append({
+                "metric_key": m.metric_key,
+                "display_name": m.metric_display_name,
+                "direction": m.direction,
+                "weight": m.weight,
+                "baseline_target": m.baseline_target,
+                "unit": m.unit
+            })
+            
+        return {
+            "version": cfg.version,
+            "baseline_weight": cfg.baseline_weight,
+            "relative_weight": cfg.relative_weight,
+            "validation_weight": cfg.validation_weight,
+            "missing_metric_policy": cfg.missing_metric_policy,
+            "min_cohort_normal": cfg.min_cohort_normal,
+            "min_cohort_limited": cfg.min_cohort_limited,
+            "use_case_metrics": by_uc
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {}
+
+@app.put("/api/scoring/config")
+def update_scoring_configuration(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """
+    Updates faculty scoring configuration.
+    Validates that global weights sum to 100%. Automatically triggers deterministic score recalculation.
+    """
+    try:
+        b_weight = float(payload.get("baseline_weight", 60.0))
+        r_weight = float(payload.get("relative_weight", 25.0))
+        v_weight = float(payload.get("validation_weight", 15.0))
+        
+        total_w = round(b_weight + r_weight + v_weight, 2)
+        if total_w != 100.0:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Score weights must sum to exactly 100%. (Current sum: {total_w}%)"
+            )
+            
+        missing_policy = payload.get("missing_metric_policy", "RENORMALIZE")
+        if missing_policy not in ["RENORMALIZE", "REVIEW_REQUIRED", "EXCLUDE"]:
+            missing_policy = "RENORMALIZE"
+            
+        # Deactivate old configurations
+        db.query(ScoringConfiguration).update({ScoringConfiguration.is_active: False})
+        
+        # Get next version number
+        latest = db.query(ScoringConfiguration).order_by(ScoringConfiguration.version.desc()).first()
+        next_ver = (latest.version + 1) if latest else 1
+        
+        new_cfg = ScoringConfiguration(
+            version=next_ver,
+            baseline_weight=b_weight,
+            relative_weight=r_weight,
+            validation_weight=v_weight,
+            missing_metric_policy=missing_policy,
+            min_cohort_normal=int(payload.get("min_cohort_normal", 15)),
+            min_cohort_limited=int(payload.get("min_cohort_limited", 8)),
+            is_active=True,
+            created_by=payload.get("created_by", "FACULTY"),
+            notes=payload.get("notes", f"Updated scoring weights to {b_weight}/{r_weight}/{v_weight}")
+        )
+        db.add(new_cfg)
+        
+        # Log to AuditLog
+        db.add(AuditLog(
+            user="FACULTY",
+            action="Updated Scoring Configuration",
+            details=f"Version {next_ver}: Baseline={b_weight}%, Relative={r_weight}%, Validation={v_weight}%, MissingPolicy={missing_policy}"
+        ))
+        db.commit()
+        
+        # Trigger deterministic recalculation
+        sync_result = recalculate_and_sync_scores(db, config_id=new_cfg.id)
+        
+        return {
+            "status": "success",
+            "message": "Scoring configuration updated and all 130 student scores recalculated.",
+            "version": next_ver,
+            "weights": {"baseline": b_weight, "relative": r_weight, "validation": v_weight},
+            "sync_summary": sync_result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/leaderboard/recalculate")
+def trigger_leaderboard_recalculation(db: Session = Depends(get_db)):
+    """Triggers deterministic re-evaluation and recalculation of all scores across all runs."""
+    try:
+        res = recalculate_and_sync_scores(db)
+        db.add(AuditLog(
+            user="FACULTY",
+            action="Triggered Full Leaderboard Recalculation",
+            details=f"Recalculated {res.get('total_students', 0)} students across {len(res.get('cohorts', {}))} cohorts."
+        ))
+        db.commit()
+        return {"status": "success", "result": res}
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/reports")
 @app.get("/api/validations/all")
