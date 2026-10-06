@@ -55,6 +55,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setAct
               <NavItem icon={ListOrdered} label="Leaderboard" active={activeTab === 'Leaderboard'} onClick={() => setActiveTab('Leaderboard')} />
               <NavItem icon={Sliders} label="Baselines" active={activeTab === 'Baselines'} onClick={() => setActiveTab('Baselines')} />
               <NavItem icon={FileText} label="Reports" active={activeTab === 'Reports'} onClick={() => setActiveTab('Reports')} />
+              <NavItem icon={ShieldCheck} label="Test Center" active={activeTab === 'Test Center'} onClick={() => setActiveTab('Test Center')} />
             </>
           ) : (
             <>

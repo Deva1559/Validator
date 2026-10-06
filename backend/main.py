@@ -1321,6 +1321,138 @@ def get_validation_scoring(run_id: int, db: Session = Depends(get_db)):
         traceback.print_exc()
         return {"final_score": 0.0, "breakdown": []}
 
+class FacultyOverrideRequest(BaseModel):
+    faculty_id: Optional[str] = "faculty_admin"
+    new_status: str
+    comment: Optional[str] = None
+    override_score: Optional[float] = None
+
+@app.get("/api/validations/{run_id}/workflow")
+def get_validation_workflow(run_id: int, db: Session = Depends(get_db)):
+    try:
+        evidence = db.query(ValidationEvidence).filter(
+            ValidationEvidence.run_id == run_id,
+            ValidationEvidence.evidence_type == "WORKFLOW"
+        ).all()
+        return evidence
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.get("/api/validations/{run_id}/metrics")
+def get_validation_metrics(run_id: int, db: Session = Depends(get_db)):
+    try:
+        evidence = db.query(ValidationEvidence).filter(
+            ValidationEvidence.run_id == run_id,
+            ValidationEvidence.evidence_type == "METRIC"
+        ).all()
+        return evidence
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.get("/api/validations/{run_id}/dataflow")
+def get_validation_dataflow(run_id: int, db: Session = Depends(get_db)):
+    try:
+        findings = db.query(ValidationFinding).filter(ValidationFinding.run_id == run_id).all()
+        evidence = db.query(ValidationEvidence).filter(ValidationEvidence.run_id == run_id).all()
+        
+        has_leakage = any("LEAKAGE" in f.finding_type for f in findings)
+        evaluates_on_train = any("TRAINING DATA" in f.title.upper() for f in findings)
+        
+        return {
+            "run_id": run_id,
+            "has_leakage": has_leakage,
+            "evaluates_on_training_data": evaluates_on_train,
+            "findings": findings,
+            "workflow_steps": [e.metric_name for e in evidence if e.evidence_type == "WORKFLOW" and e.verification_status == "VERIFIED"]
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"error": str(e)}
+
+@app.get("/api/validations/{run_id}/audit")
+def get_validation_audit(run_id: int, db: Session = Depends(get_db)):
+    try:
+        logs = db.query(AuditLog).filter(AuditLog.run_id == run_id).order_by(AuditLog.timestamp.desc()).all()
+        return logs
+    except Exception as e:
+        traceback.print_exc()
+        return []
+
+@app.post("/api/validations/{run_id}/override")
+def post_validation_override(run_id: int, req: FacultyOverrideRequest, db: Session = Depends(get_db)):
+    try:
+        run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail="Validation run not found")
+        
+        old_status = run.overall_status
+        run.overall_status = req.new_status
+        if req.override_score is not None:
+            run.final_score = req.override_score
+            
+        log_entry = AuditLog(
+            run_id=run_id,
+            user=req.faculty_id or "FACULTY",
+            action="Faculty Status Override",
+            details=f"Status updated from '{old_status}' to '{req.new_status}'. Comment: {req.comment or 'None'}"
+        )
+        db.add(log_entry)
+        db.commit()
+        db.refresh(run)
+        return {
+            "success": True,
+            "run_id": run_id,
+            "overall_status": run.overall_status,
+            "final_score": run.final_score,
+            "comment": req.comment
+        }
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/test-center")
+def get_test_center_suite():
+    return {
+        "title": "Adversarial & Semantic Validation Test Suite",
+        "description": "13 automated test notebooks verifying semantic intent, AST analysis, data-flow integrity, and anti-bypass robustness.",
+        "tests": [
+            {"id": "test_01", "name": "Standard Scikit-Learn Pipeline", "expected": "VERIFIED"},
+            {"id": "test_02", "name": "Arbitrary Variable Names", "expected": "VERIFIED"},
+            {"id": "test_03", "name": "Manual Train/Test Split (Slicing)", "expected": "VERIFIED"},
+            {"id": "test_04", "name": "Custom Preprocessing Function", "expected": "VERIFIED"},
+            {"id": "test_05", "name": "Hardcoded / Fabricated Accuracy Detection", "expected": "NOT VERIFIED"},
+            {"id": "test_06", "name": "Training Data Evaluation Detection", "expected": "WARNING / REVIEW REQUIRED"},
+            {"id": "test_07", "name": "Data Leakage (Preprocessing Before Split)", "expected": "POTENTIAL LEAKAGE"},
+            {"id": "test_08", "name": "Missing Macro F1", "expected": "NOT VERIFIED"},
+            {"id": "test_09", "name": "Missing Training Time Fallback", "expected": "NOT VERIFIED"},
+            {"id": "test_10", "name": "Multiple Accuracy Candidates Disambiguation", "expected": "Multiple Candidates Tracked"},
+            {"id": "test_11", "name": "Syntax & Malformed Code Resiliency", "expected": "ERROR / Handled"},
+            {"id": "test_12", "name": "PyTorch Manual Epoch Training Loop", "expected": "VERIFIED"},
+            {"id": "test_13", "name": "Cross-Validation Splitter", "expected": "REVIEW REQUIRED / Handled"}
+        ]
+    }
+
+@app.post("/api/test-center/run")
+def run_test_center_suite():
+    from test_adversarial_validation import TestAdversarialValidator
+    import unittest
+    
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestAdversarialValidator)
+    runner = unittest.TextTestRunner(verbosity=0)
+    result = runner.run(suite)
+    
+    return {
+        "total_tests": result.testsRun,
+        "passed": result.wasSuccessful(),
+        "failures": len(result.failures),
+        "errors": len(result.errors),
+        "summary": "13/13 Adversarial Tests Passed" if result.wasSuccessful() else f"{len(result.failures)} failures, {len(result.errors)} errors",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
     try:

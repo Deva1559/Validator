@@ -4,14 +4,15 @@ import {
   Download, CheckCircle2, AlertTriangle, ShieldCheck, 
   Activity, X, Search, 
   Layers, Copy, Check,
-  ShieldAlert, CheckCheck, BarChart3
+  ShieldAlert, CheckCheck, BarChart3,
+  HelpCircle, History, Edit3, Send
 } from 'lucide-react';
 
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 export const Reports = () => {
-  const { user, isStudent } = useAuth();
+  const { user, isStudent, isFaculty } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,8 +21,13 @@ export const Reports = () => {
   const [evidenceData, setEvidenceData] = useState<any[]>([]);
   const [findingsData, setFindingsData] = useState<any[]>([]);
   const [scoringData, setScoringData] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'procedure' | 'metrics' | 'workflow' | 'scoring' | 'findings'>('procedure');
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'procedure' | 'metrics' | 'workflow' | 'scoring' | 'findings' | 'audit'>('procedure');
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
+  const [overrideStatus, setOverrideStatus] = useState<string>('VERIFIED');
+  const [overrideComment, setOverrideComment] = useState<string>('');
+  const [overrideLoading, setOverrideLoading] = useState(false);
+  const [expandedMetricExplain, setExpandedMetricExplain] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/reports`)
@@ -35,16 +41,51 @@ export const Reports = () => {
     setSelectedRun(run);
     setActiveTab('procedure');
     try {
-      const [evRes, findRes, scoreRes] = await Promise.all([
+      const [evRes, findRes, scoreRes, audRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/validations/${run.id}/evidence`),
         fetch(`${API_BASE_URL}/api/validations/${run.id}/findings`),
-        fetch(`${API_BASE_URL}/api/validations/${run.id}/scoring`)
+        fetch(`${API_BASE_URL}/api/validations/${run.id}/scoring`),
+        fetch(`${API_BASE_URL}/api/validations/${run.id}/audit`)
       ]);
       setEvidenceData(await evRes.json());
       setFindingsData(await findRes.json());
       setScoringData(await scoreRes.json());
+      setAuditLogs(await audRes.json());
+      setOverrideStatus(run.overall_status || 'VERIFIED');
     } catch (e) {
       console.error("Failed to load audit evidence", e);
+    }
+  };
+
+  const handleFacultyOverride = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRun) return;
+    setOverrideLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/validations/${selectedRun.id}/override`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          faculty_id: user?.name || "FACULTY_ADMIN",
+          new_status: overrideStatus,
+          comment: overrideComment
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedRun((prev: any) => ({ ...prev, overall_status: data.overall_status }));
+        const [repRes, audRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/reports`),
+          fetch(`${API_BASE_URL}/api/validations/${selectedRun.id}/audit`)
+        ]);
+        setReports(await repRes.json());
+        setAuditLogs(await audRes.json());
+        setOverrideComment('');
+      }
+    } catch (err) {
+      console.error("Faculty override failed", err);
+    } finally {
+      setOverrideLoading(false);
     }
   };
 
@@ -399,6 +440,16 @@ export const Reports = () => {
                   >
                     <ShieldAlert className="w-3.5 h-3.5" /> Findings ({findingsData.length})
                   </button>
+                  <button
+                    onClick={() => setActiveTab('audit')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                      activeTab === 'audit' 
+                        ? 'bg-white text-blue-600 shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <History className="w-3.5 h-3.5" /> Audit & Override ({auditLogs.length})
+                  </button>
                 </div>
               </div>
 
@@ -616,7 +667,26 @@ export const Reports = () => {
                                   {e.confidence_score}% Confidence
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-500 font-medium mt-1">Detection Method: {e.detection_method}</p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className="text-xs text-slate-500 font-medium">Detection:</span>
+                                {(e.detection_method || '').split(',').map((m: string) => {
+                                  const trimmed = m.trim();
+                                  if (!trimmed) return null;
+                                  return (
+                                    <span key={trimmed} className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                      {trimmed}
+                                    </span>
+                                  );
+                                })}
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedMetricExplain(expandedMetricExplain === i ? null : i)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-blue-600 hover:text-blue-800 ml-2"
+                                >
+                                  <HelpCircle className="w-3.5 h-3.5" />
+                                  {expandedMetricExplain === i ? 'Hide Explanation' : 'How was this validated?'}
+                                </button>
+                              </div>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase shadow-xs ${
                               e.verification_status === 'VERIFIED' 
@@ -626,6 +696,32 @@ export const Reports = () => {
                               {e.verification_status}
                             </span>
                           </div>
+
+                          {/* How Was This Validated Expanded Card */}
+                          {expandedMetricExplain === i && (
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200 space-y-2 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-extrabold text-blue-900 uppercase tracking-wider text-[11px]">
+                                  Validation Traceability Proof
+                                </span>
+                                <span className="font-mono text-[10px] text-blue-600 font-bold">
+                                  Source Cell #{e.source_cell ?? 'N/A'}
+                                </span>
+                              </div>
+                              <p className="text-slate-700 leading-relaxed font-medium">
+                                {e.verification_status === 'VERIFIED'
+                                  ? `Verified through ${e.detection_method}. The metric was computed from genuine test evaluation data (not hardcoded or printed text) and verified against execution outputs.`
+                                  : `Status is ${e.verification_status}. ${e.baseline_status || 'Traceable evaluation code or test prediction lineage could not be proven without ambiguity.'}`
+                                }
+                              </p>
+                              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Detection Pipeline:</span>
+                                <span className="font-mono text-[10px] font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                  AST Parse → Semantic Mapping → Data-Flow Ancestry → Runtime Verification
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="well-3d p-4">
@@ -836,6 +932,121 @@ export const Reports = () => {
                             </div>
                           );
                         })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 6: Audit & Faculty Override */}
+                {activeTab === 'audit' && (
+                  <div className="space-y-6">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-base font-extrabold text-slate-900 mb-1">Audit Trail & Faculty Override</h4>
+                          <p className="text-xs text-slate-600">
+                            Immutable chronological event log of notebook parsing, AST analysis, runtime evidence, and faculty decisions.
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                          selectedRun.overall_status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                          selectedRun.overall_status === 'REVIEW REQUIRED' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                          'bg-slate-100 text-slate-800 border border-slate-200'
+                        }`}>
+                          Current Status: {selectedRun.overall_status || 'VERIFIED'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Faculty Override Controls (Visible to Faculty) */}
+                    {isFaculty && (
+                      <div className="card-3d p-6 space-y-4 border-2 border-indigo-100 bg-indigo-50/30">
+                        <div className="flex items-center gap-2">
+                          <Edit3 className="w-5 h-5 text-indigo-600" />
+                          <h4 className="text-base font-extrabold text-slate-900">Faculty Decision Override</h4>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium">
+                          Manually adjust verification status or provide evaluator annotations. All changes are logged into the audit ledger.
+                        </p>
+                        <form onSubmit={handleFacultyOverride} className="space-y-4 pt-2">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1.5">New Verification Status</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {['VERIFIED', 'REVIEW REQUIRED', 'REJECTED'].map(st => (
+                                <button
+                                  type="button"
+                                  key={st}
+                                  onClick={() => setOverrideStatus(st)}
+                                  className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition-all ${
+                                    overrideStatus === st
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {st}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1.5">Faculty Evaluation Note / Comment</label>
+                            <textarea
+                              value={overrideComment}
+                              onChange={e => setOverrideComment(e.target.value)}
+                              placeholder="Provide justification for manual override or evaluation remarks..."
+                              rows={2}
+                              className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800"
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={overrideLoading}
+                              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              {overrideLoading ? 'Applying Override...' : 'Commit Faculty Decision'}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+
+                    {/* Audit Trail Timeline */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Event History & Provenance Chain ({auditLogs.length} Events)
+                      </h4>
+                      {auditLogs.length === 0 ? (
+                        <div className="well-3d p-6 text-center text-xs text-slate-400">
+                          No audit entries recorded for this run.
+                        </div>
+                      ) : (
+                        auditLogs.map((log: any, idx: number) => (
+                          <div key={idx} className="card-3d p-4 flex items-start gap-3 bg-white">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <History className="w-4 h-4" />
+                            </div>
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="text-xs font-extrabold text-slate-900">{log.action}</span>
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Recent'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                                  User: {log.user || 'SYSTEM'}
+                                </span>
+                              </div>
+                              {log.details && (
+                                <p className="text-xs text-slate-600 font-medium pt-0.5 leading-relaxed">
+                                  {log.details}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))
                       )}
                     </div>
                   </div>
