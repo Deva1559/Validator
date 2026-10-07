@@ -985,7 +985,12 @@ USE_CASE_DASHBOARD_METRICS = {
     ]
 }
 
-def resolve_student_use_case(r: Optional[ValidationRun], db: Optional[Session] = None) -> str:
+def resolve_student_use_case(
+    r: Optional[ValidationRun],
+    db: Optional[Session] = None,
+    score_map: Optional[Dict[str, Any]] = None,
+    user_map: Optional[Dict[str, Any]] = None
+) -> str:
     """Deterministically resolves the student's assigned task across database, roster, and run metadata."""
     if not r:
         return "Traffic Sign Recognition"
@@ -994,7 +999,10 @@ def resolve_student_use_case(r: Optional[ValidationRun], db: Optional[Session] =
     name = (getattr(r, 'student_name', None) or "").strip().upper()
     
     # 1. Check StudentLeaderboardScore cache
-    if db and roll:
+    if score_map is not None:
+        if roll in score_map and getattr(score_map[roll], 'use_case_name', None):
+            return score_map[roll].use_case_name
+    elif db and roll:
         try:
             score = db.query(StudentLeaderboardScore).filter(StudentLeaderboardScore.student_roll == roll).first()
             if score and score.use_case_name:
@@ -1003,7 +1011,10 @@ def resolve_student_use_case(r: Optional[ValidationRun], db: Optional[Session] =
             pass
 
     # 2. Check student_users database table
-    if db and roll:
+    if user_map is not None:
+        if roll in user_map and getattr(user_map[roll], 'assigned_use_case', None):
+            return user_map[roll].assigned_use_case
+    elif db and roll:
         try:
             u = db.query(StudentUser).filter(StudentUser.roll_no == roll).first()
             if u and u.assigned_use_case:
@@ -1023,14 +1034,27 @@ def resolve_student_use_case(r: Optional[ValidationRun], db: Optional[Session] =
 
     return "Traffic Sign Recognition"
 
-def compute_task_metrics_for_run(r: ValidationRun, use_case_name: str, db: Optional[Session] = None) -> List[Dict[str, Any]]:
+def compute_task_metrics_for_run(
+    r: ValidationRun,
+    use_case_name: str,
+    db: Optional[Session] = None,
+    score_map: Optional[Dict[str, Any]] = None,
+    evidence_map: Optional[Dict[int, List[Any]]] = None
+) -> List[Dict[str, Any]]:
     """Generates the 3 particular dashboard metrics for this student's assigned task."""
     roll = (getattr(r, 'roll_no', None) or "").strip().upper()
     metric_defs = USE_CASE_DASHBOARD_METRICS.get(use_case_name, USE_CASE_DASHBOARD_METRICS["Traffic Sign Recognition"])
     
     # Try loading from StudentLeaderboardScore first
     cached_metrics = None
-    if db and roll:
+    if score_map is not None:
+        score = score_map.get(roll)
+        if score and getattr(score, 'raw_metrics_json', None):
+            try:
+                cached_metrics = json.loads(score.raw_metrics_json)
+            except Exception:
+                cached_metrics = None
+    elif db and roll:
         try:
             score = db.query(StudentLeaderboardScore).filter(StudentLeaderboardScore.student_roll == roll).first()
             if score and score.raw_metrics_json:
@@ -1041,36 +1065,40 @@ def compute_task_metrics_for_run(r: ValidationRun, use_case_name: str, db: Optio
     cached_map = {m.get("metric_key"): m for m in cached_metrics} if cached_metrics else {}
 
     # Also lookup real extracted metrics directly from ValidationEvidence for this run
-    evidence_map = {}
-    if db and r:
+    run_evidence_map = {}
+    evs = []
+    if evidence_map is not None and r and r.id in evidence_map:
+        evs = evidence_map[r.id]
+    elif db and r:
         try:
             evs = db.query(ValidationEvidence).filter(
                 ValidationEvidence.run_id == r.id,
                 ValidationEvidence.evidence_type == "METRIC"
             ).all()
-            for ev in evs:
-                canon_k = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
-                clean_str = str(ev.extracted_value or "").replace("%", "").replace("s", "").strip()
+        except Exception:
+            evs = []
+
+    for ev in evs:
+        canon_k = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
+        clean_str = str(ev.extracted_value or "").replace("%", "").replace("s", "").strip()
+        try:
+            ev_num = float(clean_str)
+            run_evidence_map[canon_k] = {
+                "raw_value": ev_num,
+                "status": ev.baseline_status or "VERIFIED",
+                "verification_status": ev.verification_status or "VERIFIED"
+            }
+        except Exception:
+            m = re.search(r'[-+]?\d*\.?\d+', clean_str)
+            if m:
                 try:
-                    ev_num = float(clean_str)
-                    evidence_map[canon_k] = {
-                        "raw_value": ev_num,
+                    run_evidence_map[canon_k] = {
+                        "raw_value": float(m.group(0)),
                         "status": ev.baseline_status or "VERIFIED",
                         "verification_status": ev.verification_status or "VERIFIED"
                     }
                 except Exception:
-                    m = re.search(r'[-+]?\d*\.?\d+', clean_str)
-                    if m:
-                        try:
-                            evidence_map[canon_k] = {
-                                "raw_value": float(m.group(0)),
-                                "status": ev.baseline_status or "VERIFIED",
-                                "verification_status": ev.verification_status or "VERIFIED"
-                            }
-                        except Exception:
-                            pass
-        except Exception:
-            pass
+                    pass
 
     task_metrics = []
     for defn in metric_defs:
@@ -1083,8 +1111,8 @@ def compute_task_metrics_for_run(r: ValidationRun, use_case_name: str, db: Optio
         if k in cached_map and cached_map[k].get("raw_value") is not None:
             raw_v = float(cached_map[k]["raw_value"])
         # Priority 2: Real extracted ValidationEvidence
-        elif k in evidence_map and evidence_map[k].get("raw_value") is not None:
-            raw_v = float(evidence_map[k]["raw_value"])
+        elif k in run_evidence_map and run_evidence_map[k].get("raw_value") is not None:
+            raw_v = float(run_evidence_map[k]["raw_value"])
         else:
             # Baseline target fallback
             raw_v = target
@@ -1224,12 +1252,22 @@ def build_scoring_breakdown_for_run(r: Optional[ValidationRun], use_case_name: s
         })
     return breakdown
 
-def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig = current_baselines, db: Optional[Session] = None, run_number: Optional[int] = None):
+def format_run_data(
+    r: ValidationRun,
+    rank: int = 1,
+    baselines: BaselineConfig = current_baselines,
+    db: Optional[Session] = None,
+    run_number: Optional[int] = None,
+    score_map: Optional[Dict[str, Any]] = None,
+    user_map: Optional[Dict[str, Any]] = None,
+    evidence_map: Optional[Dict[int, List[Any]]] = None,
+    findings_map: Optional[Dict[int, List[Any]]] = None
+):
     # Deterministically resolve student's assigned task
-    use_case_name = resolve_student_use_case(r, db)
+    use_case_name = resolve_student_use_case(r, db, score_map=score_map, user_map=user_map)
     
     # Build the 3 particular dashboard metrics for this assigned task
-    task_metrics = compute_task_metrics_for_run(r, use_case_name, db)
+    task_metrics = compute_task_metrics_for_run(r, use_case_name, db, score_map=score_map, evidence_map=evidence_map)
     baselines_passed_count = sum(1 for m in task_metrics if m.get("passed"))
     total_baselines = len(task_metrics)
     
@@ -1248,8 +1286,17 @@ def format_run_data(r: ValidationRun, rank: int = 1, baselines: BaselineConfig =
     score = round(r.final_score, 1) if r.final_score is not None else 85.0
     
     feedback_lines = []
-    for f in r.findings:
-        feedback_lines.append(f"- [{f.finding_type}] {f.title}: {f.description}")
+    run_findings = []
+    if findings_map is not None:
+        run_findings = findings_map.get(r.id, [])
+    elif hasattr(r, 'findings') and r.findings is not None:
+        try:
+            run_findings = r.findings
+        except Exception:
+            run_findings = []
+
+    for f in run_findings:
+        feedback_lines.append(f"- [{getattr(f, 'finding_type', 'INFO')}] {getattr(f, 'title', '')}: {getattr(f, 'description', '')}")
     if not feedback_lines:
         feedback_lines.append(f"- Verified against '{use_case_name}' baselines: {baselines_passed_count}/{total_baselines} metrics compliant.")
     ai_feedback = "\n".join(feedback_lines)
@@ -1799,10 +1846,59 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] =
         if should_filter_latest:
             chronological_runs = get_latest_runs_by_student(chronological_runs)
         
+        # Batch preload maps to eliminate N+1 round-trip DB queries
+        score_map = {}
+        try:
+            scores = db.query(StudentLeaderboardScore).all()
+            for s in scores:
+                if s.student_roll:
+                    score_map[s.student_roll.strip().upper()] = s
+        except Exception:
+            pass
+
+        user_map = {}
+        try:
+            users = db.query(StudentUser).all()
+            for u in users:
+                if u.roll_no:
+                    user_map[u.roll_no.strip().upper()] = u
+        except Exception:
+            pass
+
+        evidence_map = {}
+        findings_map = {}
+        run_ids = [r.id for r in chronological_runs]
+        if run_ids:
+            try:
+                evs = db.query(ValidationEvidence).filter(
+                    ValidationEvidence.run_id.in_(run_ids),
+                    ValidationEvidence.evidence_type == "METRIC"
+                ).all()
+                for ev in evs:
+                    evidence_map.setdefault(ev.run_id, []).append(ev)
+            except Exception:
+                pass
+
+            try:
+                fds = db.query(ValidationFinding).filter(
+                    ValidationFinding.run_id.in_(run_ids)
+                ).all()
+                for f in fds:
+                    findings_map.setdefault(f.run_id, []).append(f)
+            except Exception:
+                pass
+
         # Assign sequential run_number counting strictly from 1
         formatted = []
         for i, r in enumerate(chronological_runs):
-            item = format_run_data(r, i + 1, current_baselines, db, run_number=i + 1)
+            item = format_run_data(
+                r, i + 1, current_baselines, db,
+                run_number=i + 1,
+                score_map=score_map,
+                user_map=user_map,
+                evidence_map=evidence_map,
+                findings_map=findings_map
+            )
             formatted.append(item)
             
         # Return newest first for display in UI table
@@ -2061,6 +2157,17 @@ def get_stats(db: Session = Depends(get_db)):
         total_unique_students = len(runs)
         total_files_uploaded = len(all_runs)
         use_case_configs = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
+
+        # Batch preload all evidence for all runs in a single query
+        evidence_by_run = {}
+        run_ids = [r.id for r in all_runs]
+        if run_ids:
+            try:
+                evs = db.query(ValidationEvidence).filter(ValidationEvidence.run_id.in_(run_ids)).all()
+                for ev in evs:
+                    evidence_by_run.setdefault(ev.run_id, []).append(ev)
+            except Exception:
+                pass
         
         target_acc = current_baselines.accuracy
         target_f1 = current_baselines.macro_f1
@@ -2080,7 +2187,7 @@ def get_stats(db: Session = Depends(get_db)):
             student_f1 = None
             student_time = None
             
-            for ev in r.evidence:
+            for ev in evidence_by_run.get(r.id, []):
                 if ev.verification_status == "VERIFIED" and ev.extracted_value:
                     try:
                         if ev.metric_name == "Accuracy":
@@ -2141,7 +2248,7 @@ def get_stats(db: Session = Depends(get_db)):
             
             uc_metric_values: Dict[str, List[float]] = {}
             for r in uc_runs:
-                for ev in r.evidence:
+                for ev in evidence_by_run.get(r.id, []):
                     if getattr(ev, 'evidence_type', 'METRIC') == 'METRIC' and ev.verification_status == "VERIFIED" and ev.extracted_value:
                         canon = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
                         try:

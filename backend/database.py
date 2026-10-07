@@ -25,7 +25,7 @@ try:
     else:
         engine = create_engine(
             DATABASE_URL,
-            connect_args={"connect_timeout": 10},
+            connect_args={"connect_timeout": 4, "sslmode": "require"},
             pool_pre_ping=True,
             pool_recycle=300,
             pool_size=10,
@@ -42,7 +42,7 @@ except Exception as e:
             alt_url = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
             engine = create_engine(
                 alt_url,
-                connect_args={"connect_timeout": 10},
+                connect_args={"connect_timeout": 4, "sslmode": "require"},
                 pool_pre_ping=True,
                 pool_recycle=300,
                 pool_size=10,
