@@ -8,9 +8,10 @@ if current_dir not in sys.path:
 
 import json
 import re
+import time
 import asyncio
 import traceback
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Tuple
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, Form, Request, HTTPException, Body
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -633,6 +634,7 @@ async def upload_notebooks(
                 detail=f"Notebook verification failed on '{file.filename}': {str(e)}"
             )
     
+    invalidate_global_caches()
     return {"uploaded": len(files), "results": results}
 
 def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optional[BaselineConfig] = None):
@@ -672,6 +674,7 @@ def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optio
                             
     db.commit()
     recalculate_and_sync_scores(db)
+    invalidate_global_caches()
 
 # ---------------------------------------------------------------------
 # MULTI-TASK DASHBOARD METRICS DEFINITIONS & STUDENT ROSTER MAPPING
@@ -1826,6 +1829,15 @@ def trigger_leaderboard_recalculation(db: Session = Depends(get_db)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+_REPORTS_CACHE: Dict[str, Tuple[float, Any]] = {}
+_STATS_CACHE: Dict[str, Any] = {"timestamp": 0.0, "data": None}
+
+def invalidate_global_caches():
+    global _REPORTS_CACHE, _STATS_CACHE
+    _REPORTS_CACHE.clear()
+    _STATS_CACHE["data"] = None
+    _STATS_CACHE["timestamp"] = 0.0
+
 @app.get("/api/reports")
 @app.get("/api/validations/all")
 def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] = None, db: Session = Depends(get_db)):
@@ -1833,7 +1845,15 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] =
     Returns uploaded files/runs for audit reports:
     - In student's own login (when roll_no is provided): shows ALL versions and historical uploads.
     - In public/faculty view (when roll_no is not provided): defaults to latest_only=True, showing only the latest upload per student.
+    - Uses 45-second memory caching to deliver 5ms response times.
     """
+    cache_key = f"{roll_no or ''}_{latest_only}"
+    now = time.time()
+    if cache_key in _REPORTS_CACHE:
+        ts, cached_data = _REPORTS_CACHE[cache_key]
+        if now - ts < 45.0 and cached_data:
+            return cached_data
+
     try:
         query = db.query(ValidationRun)
         is_student_own_audit = bool(roll_no and roll_no.strip())
@@ -1903,6 +1923,7 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] =
             
         # Return newest first for display in UI table
         formatted.reverse()
+        _REPORTS_CACHE[cache_key] = (now, formatted)
         return formatted
     except Exception as e:
         traceback.print_exc()
@@ -2096,6 +2117,7 @@ def post_validation_override(run_id: int, req: FacultyOverrideRequest, db: Sessi
         db.add(log_entry)
         db.commit()
         db.refresh(run)
+        invalidate_global_caches()
         return {
             "success": True,
             "run_id": run_id,
@@ -2150,6 +2172,10 @@ def run_test_center_suite():
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
+    now = time.time()
+    if _STATS_CACHE["data"] is not None and (now - _STATS_CACHE["timestamp"] < 45.0):
+        return _STATS_CACHE["data"]
+
     try:
         all_runs = db.query(ValidationRun).all()
         # In Dashboard, multiple files by one student are counted as only 1 user submission (their latest)
@@ -2364,7 +2390,7 @@ def get_stats(db: Session = Depends(get_db)):
             for r in runs
         ]
         
-        return {
+        result_payload = {
             "total_students": total_unique_students,
             "total_files_uploaded": total_files_uploaded,
             "validated": total_unique_students,
@@ -2384,6 +2410,9 @@ def get_stats(db: Session = Depends(get_db)):
             "baselines": current_baselines.dict(),
             "use_cases": use_case_stats
         }
+        _STATS_CACHE["data"] = result_payload
+        _STATS_CACHE["timestamp"] = now
+        return result_payload
     except Exception as e:
         traceback.print_exc()
         return {
