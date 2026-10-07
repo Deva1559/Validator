@@ -231,7 +231,7 @@ def root_index(request: Request):
 @app.get("/health")
 @app.head("/health")
 def health_check():
-    return {"status": "healthy", "service": "ModelValidator AI Backend"}
+    return {"status": "healthy", "service": "ModelValidator AI Backend", "version": "v2.1-batch-opt"}
 
 def verify_faculty_key(provided_key: Optional[str]) -> bool:
     if not provided_key:
