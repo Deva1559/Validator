@@ -20,8 +20,17 @@ elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("p
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 try:
-    connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {"connect_timeout": 4}
-    engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+    if "sqlite" in DATABASE_URL:
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"connect_timeout": 10},
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=10,
+            max_overflow=20
+        )
     with engine.connect() as conn:
         pass
     print(f"Database connected successfully: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'SQLite'}")
@@ -31,7 +40,14 @@ except Exception as e:
     if "postgresql+psycopg2" in DATABASE_URL:
         try:
             alt_url = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
-            engine = create_engine(alt_url, connect_args={"connect_timeout": 4}, pool_pre_ping=True)
+            engine = create_engine(
+                alt_url,
+                connect_args={"connect_timeout": 10},
+                pool_pre_ping=True,
+                pool_recycle=300,
+                pool_size=10,
+                max_overflow=20
+            )
             with engine.connect() as conn:
                 pass
             DATABASE_URL = alt_url
@@ -538,38 +554,39 @@ seed_130_students()
 
 DEFAULT_USE_CASE_METRICS = [
     # 1. Traffic Sign Recognition
-    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "accuracy", "metric_display_name": "Accuracy", "direction": "higher", "weight": 0.50, "baseline_target": 90.0, "unit": "%"},
-    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "macro_f1", "metric_display_name": "Macro-F1", "direction": "higher", "weight": 0.35, "baseline_target": 88.0, "unit": "%"},
-    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "training_time", "metric_display_name": "Training Time", "direction": "lower", "weight": 0.15, "baseline_target": 60.0, "unit": "s"},
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "accuracy", "metric_display_name": "Model Accuracy", "direction": "higher", "weight": 0.40, "baseline_target": 88.0, "unit": "%"},
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "macro_f1", "metric_display_name": "Macro-F1 Score", "direction": "higher", "weight": 0.40, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "GTSRB", "use_case_name": "Traffic Sign Recognition", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "GTSRB", "metric_key": "training_time", "metric_display_name": "Training Time", "direction": "lower", "weight": 0.20, "baseline_target": 45.0, "unit": "s"},
 
     # 2. Crop Leaf Disease Classification
-    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "accuracy", "metric_display_name": "Accuracy", "direction": "higher", "weight": 0.45, "baseline_target": 90.0, "unit": "%"},
-    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "macro_f1", "metric_display_name": "Macro-F1", "direction": "higher", "weight": 0.40, "baseline_target": 88.0, "unit": "%"},
-    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "confusion_matrix_quality", "metric_display_name": "Confusion Matrix Quality", "direction": "higher", "weight": 0.15, "baseline_target": 90.0, "unit": "%"},
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "accuracy", "metric_display_name": "Diagnostic Accuracy", "direction": "higher", "weight": 0.45, "baseline_target": 86.0, "unit": "%"},
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "macro_f1", "metric_display_name": "Macro-F1 Score", "direction": "higher", "weight": 0.40, "baseline_target": 82.0, "unit": "%"},
+    {"use_case_id": "PLANTVILLAGE", "use_case_name": "Crop Leaf Disease Classification", "task_type": "IMAGE_CLASSIFICATION", "dataset_name": "PlantVillage", "metric_key": "confusion_matrix_quality", "metric_display_name": "Confusion Matrix", "direction": "higher", "weight": 0.15, "baseline_target": 88.0, "unit": "%"},
 
     # 3. Face Mask Detection
-    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "map50", "metric_display_name": "mAP@0.5", "direction": "higher", "weight": 0.50, "baseline_target": 88.0, "unit": "%"},
-    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "precision", "metric_display_name": "Precision", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
-    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "recall", "metric_display_name": "Recall", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "map50", "metric_display_name": "mAP@0.5 Detection", "direction": "higher", "weight": 0.50, "baseline_target": 88.5, "unit": "%"},
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "precision", "metric_display_name": "Detection Precision", "direction": "higher", "weight": 0.25, "baseline_target": 89.0, "unit": "%"},
+    {"use_case_id": "FACE_MASK", "use_case_name": "Face Mask Detection", "task_type": "OBJECT_DETECTION", "dataset_name": "Face Mask Detection", "metric_key": "recall", "metric_display_name": "Compliance Recall", "direction": "higher", "weight": 0.25, "baseline_target": 91.5, "unit": "%"},
 
     # 4. Pet Image Segmentation
-    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "dice", "metric_display_name": "Dice Score", "direction": "higher", "weight": 0.45, "baseline_target": 85.0, "unit": "%"},
-    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "iou", "metric_display_name": "IoU", "direction": "higher", "weight": 0.35, "baseline_target": 80.0, "unit": "%"},
-    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "pixel_accuracy", "metric_display_name": "Pixel Accuracy", "direction": "higher", "weight": 0.20, "baseline_target": 90.0, "unit": "%"},
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "dice", "metric_display_name": "Dice Coefficient", "direction": "higher", "weight": 0.45, "baseline_target": 82.0, "unit": "%"},
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "iou", "metric_display_name": "Mean IoU (Jaccard)", "direction": "higher", "weight": 0.35, "baseline_target": 78.5, "unit": "%"},
+    {"use_case_id": "PET_SEGMENTATION", "use_case_name": "Pet Image Segmentation", "task_type": "IMAGE_SEGMENTATION", "dataset_name": "Oxford-IIIT Pet", "metric_key": "pixel_accuracy", "metric_display_name": "Pixel Accuracy", "direction": "higher", "weight": 0.20, "baseline_target": 91.0, "unit": "%"},
 
     # 5. Image Generation with GANs
-    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "fid", "metric_display_name": "FID", "direction": "lower", "weight": 0.50, "baseline_target": 25.0, "unit": "score"},
-    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "generator_loss_stability", "metric_display_name": "G-Loss Stability", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
-    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "discriminator_loss_stability", "metric_display_name": "D-Loss Stability", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "generator_loss_stability", "metric_display_name": "G & D Loss Curves", "direction": "higher", "weight": 0.30, "baseline_target": 85.0, "unit": "%"},
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "fid", "metric_display_name": "FID on Small Sample", "direction": "lower", "weight": 0.45, "baseline_target": 32.0, "unit": "score"},
+    {"use_case_id": "GAN", "use_case_name": "Image Generation with GANs", "task_type": "IMAGE_GENERATION", "dataset_name": "Fashion-MNIST / CIFAR-10", "metric_key": "discriminator_loss_stability", "metric_display_name": "Sample-Image Grid", "direction": "higher", "weight": 0.25, "baseline_target": 85.0, "unit": "%"},
 
     # 6. Image Captioning
-    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu1", "metric_display_name": "BLEU-1", "direction": "higher", "weight": 0.40, "baseline_target": 65.0, "unit": "score"},
-    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu4", "metric_display_name": "BLEU-4", "direction": "higher", "weight": 0.60, "baseline_target": 35.0, "unit": "score"},
+    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu1", "metric_display_name": "BLEU-1 Score", "direction": "higher", "weight": 0.40, "baseline_target": 64.5, "unit": "%"},
+    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "bleu4", "metric_display_name": "BLEU-4 Score", "direction": "higher", "weight": 0.40, "baseline_target": 28.0, "unit": "%"},
+    {"use_case_id": "FLICKR8K", "use_case_name": "Image Captioning", "task_type": "IMAGE_CAPTIONING", "dataset_name": "Flickr8k", "metric_key": "caption_cider", "metric_display_name": "Sample Captions", "direction": "higher", "weight": 0.20, "baseline_target": 1.14, "unit": "score"},
 
     # 7. Pneumonia Detection from Chest X-Rays
-    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "recall", "metric_display_name": "Recall", "direction": "higher", "weight": 0.40, "baseline_target": 92.0, "unit": "%"},
-    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "auc", "metric_display_name": "AUC-ROC", "direction": "higher", "weight": 0.30, "baseline_target": 90.0, "unit": "%"},
-    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "f1", "metric_display_name": "F1-Score", "direction": "higher", "weight": 0.30, "baseline_target": 88.0, "unit": "%"}
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "recall", "metric_display_name": "Clinical Recall", "direction": "higher", "weight": 0.40, "baseline_target": 94.0, "unit": "%"},
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "auc", "metric_display_name": "ROC-AUC Score", "direction": "higher", "weight": 0.30, "baseline_target": 0.93, "unit": "score"},
+    {"use_case_id": "PNEUMONIA", "use_case_name": "Pneumonia Detection from Chest X-Rays", "task_type": "BINARY_CLASSIFICATION", "dataset_name": "Mendeley Chest X-Ray", "metric_key": "f1", "metric_display_name": "Diagnostic F1 Score", "direction": "higher", "weight": 0.30, "baseline_target": 90.0, "unit": "%"}
 ]
 
 def seed_use_case_metric_configs():
@@ -591,6 +608,12 @@ def seed_use_case_metric_configs():
                     baseline_target=m["baseline_target"],
                     unit=m["unit"]
                 ))
+            else:
+                existing[key].metric_display_name = m["metric_display_name"]
+                existing[key].direction = m["direction"]
+                existing[key].weight = m["weight"]
+                existing[key].baseline_target = m["baseline_target"]
+                existing[key].unit = m["unit"]
         
         # Also seed default global scoring configuration if absent
         cfg = db.query(ScoringConfiguration).filter(ScoringConfiguration.is_active == True).first()

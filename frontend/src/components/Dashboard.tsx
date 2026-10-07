@@ -532,8 +532,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Confusion Matrix"
-                              value=">88% Diag"
-                              subtitle="38×38 Disease Class Heatmap Verified"
+                              value={uc.avg_confusion_matrix > 0 ? `${uc.avg_confusion_matrix}% Diag` : "≥ 88% Diag"}
+                              subtitle={uc.avg_confusion_matrix > 0 ? `Diagonal Dominance: ${uc.avg_confusion_matrix}% (${uc.avg_confusion_matrix >= 88 ? 'Verified' : 'Below Target'})` : "38×38 Disease Class Heatmap Verified"}
                               icon={Grid}
                               color="bg-gradient-to-tr from-cyan-600 to-blue-600"
                               badge="Diagonal Dominant"
@@ -568,8 +568,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                           <>
                             <MetricCard
                               title="mAP@0.5 Detection"
-                              value="≥ 88.5%"
-                              subtitle="Mean Average Precision at IoU ≥ 0.50"
+                              value={uc.avg_map50 > 0 ? `${uc.avg_map50}%` : "≥ 88.5%"}
+                              subtitle={uc.avg_map50 > 0 ? `Cohort Average (${uc.avg_map50 >= 88.5 ? 'Passed' : 'Below Target'})` : "Mean Average Precision at IoU ≥ 0.50"}
                               icon={Activity}
                               color="bg-gradient-to-tr from-cyan-600 to-blue-600"
                               badge="Bounding Box Benchmark"
@@ -577,8 +577,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Detection Precision"
-                              value="≥ 89.0%"
-                              subtitle="Suppresses false positive mask violations"
+                              value={uc.avg_precision > 0 ? `${uc.avg_precision}%` : "≥ 89.0%"}
+                              subtitle={uc.avg_precision > 0 ? `Cohort Average (${uc.avg_precision >= 89.0 ? 'Passed' : 'Below Target'})` : "Suppresses false positive mask violations"}
                               icon={Target}
                               color="bg-gradient-to-tr from-blue-600 to-indigo-600"
                               badge="Low False Alarm"
@@ -586,8 +586,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Compliance Recall"
-                              value="≥ 91.5%"
-                              subtitle="Strict unmasked / improper mask audit"
+                              value={uc.avg_recall > 0 ? `${uc.avg_recall}%` : "≥ 91.5%"}
+                              subtitle={uc.avg_recall > 0 ? `Cohort Average (${uc.avg_recall >= 91.5 ? 'Passed' : 'Below Target'})` : "Strict unmasked / improper mask audit"}
                               icon={ShieldCheck}
                               color="bg-gradient-to-tr from-indigo-600 to-purple-600"
                               badge="High Sensitivity"
@@ -601,8 +601,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                           <>
                             <MetricCard
                               title="Dice Coefficient"
-                              value="≥ 82.0%"
-                              subtitle="Sørensen–Dice contour overlap"
+                              value={uc.avg_dice > 0 ? `${uc.avg_dice}%` : "≥ 82.0%"}
+                              subtitle={uc.avg_dice > 0 ? `Cohort Average (${uc.avg_dice >= 82.0 ? 'Passed' : 'Below Target'})` : "Sørensen–Dice contour overlap"}
                               icon={Activity}
                               color="bg-gradient-to-tr from-purple-600 to-indigo-600"
                               badge="Contour Overlap"
@@ -610,8 +610,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Mean IoU (Jaccard)"
-                              value="≥ 78.5%"
-                              subtitle="Overlap across pet foreground vs trimap"
+                              value={uc.avg_iou > 0 ? `${uc.avg_iou}%` : "≥ 78.5%"}
+                              subtitle={uc.avg_iou > 0 ? `Cohort Average (${uc.avg_iou >= 78.5 ? 'Passed' : 'Below Target'})` : "Overlap across pet foreground vs trimap"}
                               icon={Layers}
                               color="bg-gradient-to-tr from-indigo-600 to-blue-600"
                               badge="Trimap Jaccard"
@@ -619,8 +619,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Pixel Accuracy"
-                              value="≥ 91.0%"
-                              subtitle="Total correctly segmented mask pixels"
+                              value={uc.avg_pixel_accuracy > 0 ? `${uc.avg_pixel_accuracy}%` : "≥ 91.0%"}
+                              subtitle={uc.avg_pixel_accuracy > 0 ? `Cohort Average (${uc.avg_pixel_accuracy >= 91.0 ? 'Passed' : 'Below Target'})` : "Total correctly segmented mask pixels"}
                               icon={Target}
                               color="bg-gradient-to-tr from-violet-600 to-purple-600"
                               badge="Pixel Trimap Acc"
@@ -634,8 +634,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                           <>
                             <MetricCard
                               title="G & D Loss Curves"
-                              value="G: ~1.28 | D: ~0.62"
-                              subtitle="Minimax equilibrium without mode collapse"
+                              value={uc.avg_g_loss > 0 ? `${uc.avg_g_loss}% Stable` : "G: ~1.28 | D: ~0.62"}
+                              subtitle={uc.avg_g_loss > 0 ? `Equilibrium Stability: ${uc.avg_g_loss}% (${uc.avg_g_loss >= 80 ? 'Verified' : 'Unstable'})` : "Minimax equilibrium without mode collapse"}
                               icon={LineChart}
                               color="bg-gradient-to-tr from-pink-600 to-rose-600"
                               badge="Minimax Equilibrium"
@@ -651,8 +651,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             </MetricCard>
                             <MetricCard
                               title="FID on Small Sample"
-                              value="≤ 32.0"
-                              subtitle="Fréchet Inception Distance (Lower is better)"
+                              value={uc.avg_fid > 0 ? `${uc.avg_fid}` : "≤ 32.0"}
+                              subtitle={uc.avg_fid > 0 ? `Fréchet Inception Distance (${uc.avg_fid <= 32.0 ? 'Passed' : 'Exceeded'})` : "Fréchet Inception Distance (Lower is better)"}
                               icon={Target}
                               color="bg-gradient-to-tr from-rose-600 to-pink-600"
                               badge="Distribution Fidelity"
@@ -660,8 +660,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Sample-Image Grid"
-                              value="Verified 4×4"
-                              subtitle="Checkpointed diversity & artifact check"
+                              value={uc.avg_d_loss > 0 ? `${uc.avg_d_loss}% Div` : "Verified 4×4"}
+                              subtitle={uc.avg_d_loss > 0 ? `Latent Diversity Score: ${uc.avg_d_loss}%` : "Checkpointed diversity & artifact check"}
                               icon={Grid}
                               color="bg-gradient-to-tr from-amber-500 to-orange-600"
                               badge="Latent Diversity"
@@ -682,8 +682,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                           <>
                             <MetricCard
                               title="BLEU-1 Score"
-                              value="≥ 64.5%"
-                              subtitle="Unigram lexical precision against references"
+                              value={uc.avg_bleu1 > 0 ? `${uc.avg_bleu1}%` : "≥ 64.5%"}
+                              subtitle={uc.avg_bleu1 > 0 ? `Cohort Average (${uc.avg_bleu1 >= 64.5 ? 'Passed' : 'Below Target'})` : "Unigram lexical precision against references"}
                               icon={Activity}
                               color="bg-gradient-to-tr from-amber-500 to-orange-600"
                               badge="Vocabulary Precision"
@@ -691,8 +691,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="BLEU-4 Score"
-                              value="≥ 28.0%"
-                              subtitle="4-Gram phrase fluency & natural syntax"
+                              value={uc.avg_bleu4 > 0 ? `${uc.avg_bleu4}%` : "≥ 28.0%"}
+                              subtitle={uc.avg_bleu4 > 0 ? `Cohort Average (${uc.avg_bleu4 >= 28.0 ? 'Passed' : 'Below Target'})` : "4-Gram phrase fluency & natural syntax"}
                               icon={TrendingUp}
                               color="bg-gradient-to-tr from-orange-500 to-amber-600"
                               badge="Syntactic Fluency"
@@ -700,8 +700,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Sample Captions"
-                              value="Verified Match"
-                              subtitle="CIDEr 1.14 • Meteor 0.32"
+                              value={uc.avg_cider > 0 ? `CIDEr ${uc.avg_cider}` : "Verified Match"}
+                              subtitle={uc.avg_cider > 0 ? `CIDEr Alignment (${uc.avg_cider >= 1.14 ? 'Passed' : 'Below Target'})` : "CIDEr 1.14 • Meteor 0.32"}
                               icon={FileText}
                               color="bg-gradient-to-tr from-yellow-500 to-amber-600"
                               badge="Multimodal Match"
@@ -719,8 +719,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                           <>
                             <MetricCard
                               title="Clinical Recall"
-                              value="≥ 94.0%"
-                              subtitle="Diagnostic sensitivity: strictly limits false negatives"
+                              value={uc.avg_recall > 0 ? `${uc.avg_recall}%` : "≥ 94.0%"}
+                              subtitle={uc.avg_recall > 0 ? `Cohort Sensitivity (${uc.avg_recall >= 94.0 ? 'Passed' : 'Below Target'})` : "Diagnostic sensitivity: strictly limits false negatives"}
                               icon={ShieldAlert}
                               color="bg-gradient-to-tr from-rose-600 to-red-600"
                               badge="False-Negative Limit"
@@ -728,8 +728,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="ROC-AUC Score"
-                              value="≥ 0.93"
-                              subtitle="Area under ROC curve across clinical thresholds"
+                              value={uc.avg_auc > 0 ? `${uc.avg_auc}` : "≥ 0.93"}
+                              subtitle={uc.avg_auc > 0 ? `Cohort ROC-AUC (${uc.avg_auc >= 0.93 ? 'Passed' : 'Below Target'})` : "Area under ROC curve across clinical thresholds"}
                               icon={Target}
                               color="bg-gradient-to-tr from-red-600 to-rose-600"
                               badge="Diagnostic AUC"
@@ -737,8 +737,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab?: (tab: string) => vo
                             />
                             <MetricCard
                               title="Diagnostic F1 Score"
-                              value={uc.avg_macro_f1 > 0 ? `${uc.avg_macro_f1}%` : `≥ 90.0%`}
-                              subtitle="Harmonic balance of precision & sensitivity"
+                              value={uc.avg_diagnostic_f1 > 0 ? `${uc.avg_diagnostic_f1}%` : (uc.avg_macro_f1 > 0 ? `${uc.avg_macro_f1}%` : "≥ 90.0%")}
+                              subtitle={(uc.avg_diagnostic_f1 > 0 || uc.avg_macro_f1 > 0) ? `Clinical F1 (${(uc.avg_diagnostic_f1 || uc.avg_macro_f1) >= 90.0 ? 'Passed' : 'Below Target'})` : "Harmonic balance of precision & sensitivity"}
                               icon={TrendingUp}
                               color="bg-gradient-to-tr from-orange-500 to-rose-600"
                               badge="Clinical Balance"

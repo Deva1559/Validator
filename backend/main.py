@@ -7,6 +7,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 import json
+import re
 import asyncio
 import traceback
 from typing import Optional, List, Dict, Any, Union
@@ -27,6 +28,7 @@ from scoring_engine import (
     recalculate_and_sync_scores, CANONICAL_METRIC_MAP,
     calculate_overall_performance_score
 )
+from validation_engine.evidence.evidence_collector import USE_CASE_SPEC_METRICS
 
 app = FastAPI(title="ModelValidator AI API")
 
@@ -583,7 +585,11 @@ async def upload_notebooks(
                 "macro_f1": uc_config.macro_f1 if uc_config else current_baselines.macro_f1,
                 "training_time": uc_config.training_time if uc_config else current_baselines.training_time,
                 "time_comparison": uc_config.time_comparison if uc_config else current_baselines.time_comparison,
+                "use_case": final_use_case
             }
+            track_specs = USE_CASE_SPEC_METRICS.get(final_use_case, [])
+            for s in track_specs:
+                baseline_for_run[s["metric_key"]] = s["target"]
             
             # Create DB record with student metadata and chosen use case
             run = ValidationRun(
@@ -634,94 +640,36 @@ def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optio
     uc_configs = {u.name: u for u in db.query(UseCaseConfig).all()}
     
     for r in runs:
-        acc_val = None
-        f1_val = None
-        time_val = None
-        
-        for ev in r.evidence:
-            if ev.metric_name == "Accuracy" and ev.verification_status == "VERIFIED" and ev.extracted_value:
-                try:
-                    acc_val = float(ev.extracted_value.replace("%", "").strip())
-                except Exception:
-                    pass
-            elif ev.metric_name == "Macro F1" and ev.verification_status == "VERIFIED" and ev.extracted_value:
-                try:
-                    f1_val = float(ev.extracted_value.replace("%", "").strip())
-                except Exception:
-                    pass
-            elif ev.metric_name == "Training Time" and ev.verification_status == "VERIFIED" and ev.extracted_value:
-                try:
-                    time_val = float(ev.extracted_value.replace("s", "").strip())
-                except Exception:
-                    pass
-        
-        # Resolve target baseline for the run's specific use case
         uc_name = getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition'
-        uc = uc_configs.get(uc_name)
+        spec_list = USE_CASE_SPEC_METRICS.get(uc_name, USE_CASE_SPEC_METRICS.get("Traffic Sign Recognition", []))
+        spec_by_key = {s["metric_key"]: s for s in spec_list}
         
-        target_acc = uc.accuracy if uc else (default_baselines.accuracy if default_baselines else current_baselines.accuracy)
-        target_f1 = uc.macro_f1 if uc else (default_baselines.macro_f1 if default_baselines else current_baselines.macro_f1)
-        target_time = uc.training_time if uc else (default_baselines.training_time if default_baselines else current_baselines.training_time)
-        time_comparison = uc.time_comparison if uc else (default_baselines.time_comparison if default_baselines else current_baselines.time_comparison)
-        
-        # Base weight: Accuracy 40%, Macro F1 40%, Training Time 20%
-        passed_acc = acc_val is not None and acc_val >= target_acc
-        passed_f1 = f1_val is not None and f1_val >= target_f1
-        passed_time = time_val is not None and (time_val <= target_time if time_comparison == "lower" else time_val >= target_time)
-
-        if acc_val is not None:
-            raw_acc = min(40.0, (acc_val / 100.0) * 40.0)
-            acc_contrib = round(raw_acc if passed_acc else raw_acc * 0.7, 2)
-        else:
-            acc_contrib = 0.0
-
-        if f1_val is not None:
-            raw_f1 = min(40.0, (f1_val / 100.0) * 40.0)
-            f1_contrib = round(raw_f1 if passed_f1 else raw_f1 * 0.7, 2)
-        else:
-            f1_contrib = 0.0
-
-        time_contrib = 0.0
-        if time_val is not None and time_val > 0:
-            if time_comparison == "lower":
-                ratio = min(20.0, (target_time / time_val) * 20.0)
-            else:
-                ratio = min(20.0, (time_val / max(0.1, target_time)) * 20.0)
-            time_contrib = round(20.0 if passed_time else ratio * 0.7, 2)
-            
-        total_score = round(acc_contrib + f1_contrib + time_contrib, 1)
-        all_passed = passed_acc and passed_f1 and passed_time
-        
-        r.final_score = total_score
-        r.overall_status = "REVIEWED"
-        
-        # Refresh ScoringBreakdown
-        db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == r.id).delete()
-        db.add(ScoringBreakdown(run_id=r.id, metric_name="Accuracy", weight=40, contribution=acc_contrib))
-        db.add(ScoringBreakdown(run_id=r.id, metric_name="Macro F1", weight=40, contribution=f1_contrib))
-        db.add(ScoringBreakdown(run_id=r.id, metric_name="Training Time", weight=20, contribution=time_contrib))
-        
-        # Update baseline references in evidence
+        # Update baseline references in evidence for all 7 use cases
         for ev in r.evidence:
-            if ev.metric_name == "Accuracy":
-                ev.baseline_value = f"{target_acc}%"
-                if acc_val is not None:
-                    diff = round(acc_val - target_acc, 2)
-                    ev.difference_from_baseline = f"{diff:+.2f}% vs target"
-                    ev.baseline_status = "Above target baseline" if diff >= 0 else "Below target baseline"
-            elif ev.metric_name == "Macro F1":
-                ev.baseline_value = f"{target_f1}%"
-                if f1_val is not None:
-                    diff = round(f1_val - target_f1, 2)
-                    ev.difference_from_baseline = f"{diff:+.2f}% vs target"
-                    ev.baseline_status = "Above target baseline" if diff >= 0 else "Below target baseline"
-            elif ev.metric_name == "Training Time":
-                ev.baseline_value = f"{target_time}s"
-                if time_val is not None:
-                    diff = round(time_val - target_time, 2)
-                    ev.difference_from_baseline = f"{diff:+.2f}s vs target"
-                    ev.baseline_status = "Within target threshold" if (time_val <= target_time if time_comparison == 'lower' else time_val >= target_time) else "Exceeds target limit"
-                    
+            canon_key = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
+            spec = spec_by_key.get(canon_key)
+            if spec:
+                target = spec["target"]
+                unit = spec["unit"]
+                direction = spec["direction"]
+                ev.baseline_value = f"{target}{unit}" if unit else f"{target}"
+                
+                if ev.verification_status == "VERIFIED" and ev.extracted_value:
+                    try:
+                        clean_str = str(ev.extracted_value).replace("%", "").replace("s", "").strip()
+                        val = float(clean_str)
+                    except Exception:
+                        m = re.search(r'[-+]?\d*\.?\d+', str(ev.extracted_value))
+                        val = float(m.group(0)) if m else None
+                        
+                    if val is not None:
+                        diff = round(val - target, 2)
+                        ev.difference_from_baseline = f"{diff:+.2f}{unit} vs target"
+                        if direction == "lower":
+                            ev.baseline_status = "Within target threshold" if val <= target else "Exceeds target limit"
+                        else:
+                            ev.baseline_status = "Above target baseline" if val >= target else "Below target baseline"
+                            
     db.commit()
     recalculate_and_sync_scores(db)
 
@@ -1152,11 +1100,12 @@ def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str
         direction = defn["direction"]
         unit = defn["unit"]
         
+        metric_k = defn.get("metric_key", "")
         if direction == "lower":
             raw_v = round(max(15.0, target * (1.06 - 0.06 * score_ratio)), 1)
-        elif unit == "AUC":
+        elif metric_k == "auc" or unit == "AUC":
             raw_v = round(min(0.995, max(0.60, target * (0.96 + 0.04 * score_ratio))), 3)
-        elif unit == "CIDEr":
+        elif metric_k == "caption_cider" or unit == "CIDEr":
             raw_v = round(min(1.50, max(0.50, target * (0.96 + 0.04 * score_ratio))), 2)
         else:
             raw_v = round(min(99.4, max(50.0, target * (0.96 + 0.04 * score_ratio))), 1)
@@ -2083,6 +2032,12 @@ def get_stats(db: Session = Depends(get_db)):
                     meets_target_count += 1
                 else:
                     below_target_count += 1
+            elif r.final_score is not None and r.final_score > 0:
+                acc_list.append(round(r.final_score, 1))
+                if r.final_score >= 80.0:
+                    meets_target_count += 1
+                else:
+                    below_target_count += 1
             else:
                 unverified_count += 1
                 
@@ -2091,13 +2046,18 @@ def get_stats(db: Session = Depends(get_db)):
             if student_time is not None:
                 time_list.append(student_time)
                 
+            eff_score = student_acc if student_acc is not None else (round(r.final_score, 1) if r.final_score else 0.0)
+            is_ver = (student_acc is not None) or bool(r.final_score and r.final_score > 0)
+            meets_tgt = (student_acc is not None and student_acc >= target_acc) or bool(r.final_score and r.final_score >= 80.0)
+
             student_records.append({
                 "name": r.student_name,
                 "roll_no": getattr(r, 'roll_no', None) or '',
                 "use_case": getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition',
-                "accuracy": student_acc if student_acc is not None else 0.0,
-                "is_verified": student_acc is not None,
-                "meets_target": student_acc is not None and student_acc >= target_acc,
+                "accuracy": eff_score,
+                "score": eff_score,
+                "is_verified": is_ver,
+                "meets_target": meets_tgt,
                 "target": target_acc
             })
             
@@ -2113,25 +2073,44 @@ def get_stats(db: Session = Depends(get_db)):
             uc_total = len(uc_runs)
             uc_passed = sum(1 for r in uc_runs if r.overall_status in ["VERIFIED", "REVIEWED", "REVIEW REQUIRED"])
             
-            uc_acc_list = []
-            uc_f1_list = []
-            uc_time_list = []
+            uc_metric_values: Dict[str, List[float]] = {}
             for r in uc_runs:
                 for ev in r.evidence:
-                    if ev.verification_status == "VERIFIED" and ev.extracted_value:
+                    if getattr(ev, 'evidence_type', 'METRIC') == 'METRIC' and ev.verification_status == "VERIFIED" and ev.extracted_value:
+                        canon = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
                         try:
-                            if ev.metric_name == "Accuracy":
-                                uc_acc_list.append(float(ev.extracted_value.replace("%", "").strip()))
-                            elif ev.metric_name == "Macro F1":
-                                uc_f1_list.append(float(ev.extracted_value.replace("%", "").strip()))
-                            elif ev.metric_name == "Training Time":
-                                uc_time_list.append(float(ev.extracted_value.replace("s", "").strip()))
+                            clean_str = str(ev.extracted_value).replace("%", "").replace("s", "").strip()
+                            val = float(clean_str)
+                            uc_metric_values.setdefault(canon, []).append(val)
                         except Exception:
-                            pass
+                            m = re.search(r'[-+]?\d*\.?\d+', str(ev.extracted_value))
+                            if m:
+                                try:
+                                    uc_metric_values.setdefault(canon, []).append(float(m.group(0)))
+                                except Exception:
+                                    pass
             
-            uc_avg_acc = round(sum(uc_acc_list) / len(uc_acc_list), 1) if uc_acc_list else 0.0
-            uc_avg_f1 = round(sum(uc_f1_list) / len(uc_f1_list), 1) if uc_f1_list else 0.0
-            uc_avg_time = round(sum(uc_time_list) / len(uc_time_list), 1) if uc_time_list else 0.0
+            def _avg(k: str, default: float = 0.0, decimals: int = 1) -> float:
+                vals = uc_metric_values.get(k, [])
+                return round(sum(vals) / len(vals), decimals) if vals else default
+            
+            uc_avg_acc = _avg("accuracy", 0.0)
+            uc_avg_f1 = _avg("macro_f1", 0.0)
+            uc_avg_time = _avg("training_time", 0.0)
+            
+            # Build full baseline dictionary for all track metrics
+            spec_list = USE_CASE_SPEC_METRICS.get(uc.name, [])
+            baseline_dict = {
+                "accuracy": uc.accuracy,
+                "macro_f1": uc.macro_f1,
+                "training_time": uc.training_time,
+                "time_comparison": uc.time_comparison,
+                "student_quota": uc.student_quota
+            }
+            for s in spec_list:
+                baseline_dict[s["metric_key"]] = s["target"]
+                
+            metric_averages = {k: _avg(k, 0.0, 2 if k in ["auc", "fid", "caption_cider"] else 1) for k in uc_metric_values}
             
             use_case_stats.append({
                 "id": uc.id,
@@ -2145,14 +2124,24 @@ def get_stats(db: Session = Depends(get_db)):
                 "avg_accuracy": uc_avg_acc,
                 "avg_macro_f1": uc_avg_f1,
                 "avg_training_time": uc_avg_time,
+                "avg_confusion_matrix": _avg("confusion_matrix_quality", 0.0),
+                "avg_map50": _avg("map50", 0.0),
+                "avg_precision": _avg("precision", 0.0),
+                "avg_recall": _avg("recall", 0.0),
+                "avg_dice": _avg("dice", 0.0),
+                "avg_iou": _avg("iou", 0.0),
+                "avg_pixel_accuracy": _avg("pixel_accuracy", 0.0),
+                "avg_g_loss": _avg("generator_loss_stability", 0.0),
+                "avg_fid": _avg("fid", 0.0, 2),
+                "avg_d_loss": _avg("discriminator_loss_stability", 0.0),
+                "avg_bleu1": _avg("bleu1", 0.0),
+                "avg_bleu4": _avg("bleu4", 0.0),
+                "avg_cider": _avg("caption_cider", 0.0, 2),
+                "avg_auc": _avg("auc", 0.0, 2),
+                "avg_diagnostic_f1": _avg("f1", _avg("macro_f1", 0.0)),
+                "metric_averages": metric_averages,
                 "quota_progress": min(100, round((uc_total / max(1, uc.student_quota)) * 100, 1)),
-                "baseline": {
-                    "accuracy": uc.accuracy,
-                    "macro_f1": uc.macro_f1,
-                    "training_time": uc.training_time,
-                    "time_comparison": uc.time_comparison,
-                    "student_quota": uc.student_quota
-                }
+                "baseline": baseline_dict
             })
         
         # Baseline-correlated distribution

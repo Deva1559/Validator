@@ -26,11 +26,18 @@ def generate_ai_explanation(dossier: ValidationDossier, student_name: str, use_c
         lines.append("- Data Hygiene & Partitioning: Verified clean train-test separation with zero detected leakage.")
 
     # Metric evaluation
-    acc = dossier.extracted_metrics.get("accuracy")
-    f1 = dossier.extracted_metrics.get("macro_f1")
-    t = dossier.extracted_metrics.get("training_time")
-    
-    lines.append(f"- Verified Metrics: Accuracy={acc if acc is not None else 'UNVERIFIED'}%, Macro-F1={f1 if f1 is not None else 'UNVERIFIED'}%, Duration={t}s.")
+    metric_strs = []
+    for ev in dossier.evidence_items:
+        if ev.evidence_type == "METRIC":
+            if ev.status == "VERIFIED" and ev.extracted_value:
+                metric_strs.append(f"{ev.concept}={ev.extracted_value}")
+            else:
+                metric_strs.append(f"{ev.concept}=UNVERIFIED")
+                
+    if metric_strs:
+        lines.append(f"- Verified Metrics: {', '.join(metric_strs)}.")
+    else:
+        lines.append("- Verified Metrics: No metric statements verified.")
     
     if dossier.requires_review:
         lines.append("- Verdict: REVIEW REQUIRED. Potential integrity anomaly or unverified metric statement detected.")

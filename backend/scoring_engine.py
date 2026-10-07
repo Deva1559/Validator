@@ -13,6 +13,7 @@ Guarantees:
 from typing import Dict, List, Optional, Tuple, Any
 import math
 import json
+import re
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -393,36 +394,104 @@ def assign_overall_ranks(all_students: List[Dict[str, Any]]) -> List[Dict[str, A
 
 
 CANONICAL_METRIC_MAP = {
+    # 1. Traffic Sign Recognition
     "accuracy": "accuracy",
     "acc": "accuracy",
+    "model accuracy": "accuracy",
+    "test accuracy": "accuracy",
     "macro f1": "macro_f1",
     "macro-f1": "macro_f1",
+    "macro f1 score": "macro_f1",
+    "macro-f1 score": "macro_f1",
     "training time": "training_time",
+    "training latency": "training_time",
     "execution time": "training_time",
     "time": "training_time",
+    "latency": "training_time",
+
+    # 2. Crop Leaf Disease Classification
+    "diagnostic accuracy": "accuracy",
+    "pathology macro f1": "macro_f1",
+    "confusion matrix": "confusion_matrix_quality",
     "confusion matrix quality": "confusion_matrix_quality",
-    "map@0.5": "map50",
+    "diagonal dominance": "confusion_matrix_quality",
+    "confusion matrix diagonal dominance": "confusion_matrix_quality",
+
+    # 3. Face Mask Detection
     "map50": "map50",
+    "map@0.5": "map50",
     "map": "map50",
+    "map@0.5 detection": "map50",
+    "map50 detection": "map50",
     "precision": "precision",
+    "detection precision": "precision",
+    "mask detection precision": "precision",
     "recall": "recall",
-    "dice score": "dice",
+    "compliance recall": "recall",
+    "compliance sensitivity recall": "recall",
+
+    # 4. Pet Image Segmentation
     "dice": "dice",
+    "dice score": "dice",
+    "dice coefficient": "dice",
+    "sorensen-dice": "dice",
+    "sørensen–dice": "dice",
     "iou": "iou",
+    "mean iou": "iou",
+    "mean iou (jaccard)": "iou",
+    "jaccard": "iou",
+    "jaccard score": "iou",
     "pixel accuracy": "pixel_accuracy",
-    "fid": "fid",
-    "g-loss stability": "generator_loss_stability",
+    "pixel trimap acc": "pixel_accuracy",
+
+    # 5. Image Generation with GANs
+    "generator_loss_stability": "generator_loss_stability",
     "generator loss stability": "generator_loss_stability",
-    "d-loss stability": "discriminator_loss_stability",
+    "g-loss stability": "generator_loss_stability",
+    "g & d loss curves": "generator_loss_stability",
+    "g & d loss stability": "generator_loss_stability",
+    "loss stability": "generator_loss_stability",
+    "fid": "fid",
+    "fid score": "fid",
+    "fid on small sample": "fid",
+    "frechet inception distance": "fid",
+    "fréchet inception distance": "fid",
+    "discriminator_loss_stability": "discriminator_loss_stability",
     "discriminator loss stability": "discriminator_loss_stability",
-    "bleu-1": "bleu1",
+    "d-loss stability": "discriminator_loss_stability",
+    "sample-image grid": "discriminator_loss_stability",
+    "sample-image grid diversity": "discriminator_loss_stability",
+    "sample grid diversity": "discriminator_loss_stability",
+    "latent diversity": "discriminator_loss_stability",
+    "diversity score": "discriminator_loss_stability",
+
+    # 6. Image Captioning
     "bleu1": "bleu1",
-    "bleu-4": "bleu4",
+    "bleu-1": "bleu1",
+    "bleu-1 score": "bleu1",
     "bleu4": "bleu4",
+    "bleu-4": "bleu4",
+    "bleu-4 score": "bleu4",
+    "caption_cider": "caption_cider",
+    "cider": "caption_cider",
+    "cider score": "caption_cider",
+    "sample captions": "caption_cider",
+    "sample captions alignment": "caption_cider",
+
+    # 7. Pneumonia Detection from Chest X-Rays
+    "clinical recall": "recall",
+    "clinical sensitivity": "recall",
+    "clinical sensitivity recall": "recall",
+    "sensitivity": "recall",
     "auc": "auc",
     "auc-roc": "auc",
+    "roc-auc": "auc",
+    "roc_auc": "auc",
+    "roc-auc score": "auc",
     "f1": "f1",
-    "f1-score": "f1"
+    "f1-score": "f1",
+    "diagnostic f1": "f1",
+    "diagnostic f1 score": "f1"
 }
 
 def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) -> Dict[str, Any]:
@@ -539,7 +608,12 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
             try:
                 num_val = float(clean_str)
             except Exception:
-                num_val = None
+                num_match = re.search(r'[-+]?\d*\.?\d+', clean_str)
+                if num_match:
+                    try:
+                        num_val = float(num_match.group(0))
+                    except Exception:
+                        num_val = None
                 
             if canonical_key == "training_time" and num_val is not None:
                 time_metric_val = num_val
@@ -670,6 +744,17 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
         
         # Update run's final_score for backwards compatibility
         item["run"].final_score = item["overall_score"]
+        
+        # Also sync ScoringBreakdown table for frontend compatibility
+        from database import ScoringBreakdown
+        db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == r_id).delete()
+        for mb in item["metric_breakdowns"]:
+            db.add(ScoringBreakdown(
+                run_id=r_id,
+                metric_name=mb["display_name"],
+                weight=round(mb["weight"] * 100, 1),
+                contribution=round(mb["weighted_contrib"], 2)
+            ))
         
     db.commit()
     

@@ -69,7 +69,8 @@ def run_notebook_validation(
         dataflow_pipeline=pipeline,
         metric_candidates=metric_candidates,
         runtime_results=runtime_results,
-        target_baselines=target_baselines
+        target_baselines=target_baselines,
+        use_case=use_case
     )
 
     return dossier
@@ -85,9 +86,10 @@ def validate_and_persist_notebook(
 ):
     """
     Integrates directly with database models:
-    Replaces keyword-based analyze_notebook_evidence while maintaining 100% backward compatibility.
+    Validates against the student's assigned use case and desired dashboard metrics.
     """
     from database import ValidationRun, ValidationEvidence, ValidationFinding, ScoringBreakdown, AuditLog
+    from .evidence.evidence_collector import USE_CASE_SPEC_METRICS
 
     run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
     student_name = run.student_name if run else "Student"
@@ -147,30 +149,44 @@ def validate_and_persist_notebook(
             source=find["source"]
         ))
 
-    # Compute deterministic scores
-    acc_val = dossier.extracted_metrics.get("accuracy")
-    f1_val = dossier.extracted_metrics.get("macro_f1")
-    time_val = dossier.extracted_metrics.get("training_time", 40.0)
-
-    target_acc = baselines.get("accuracy", 90.0)
-    target_f1 = baselines.get("macro_f1", 88.0)
-    target_time = baselines.get("training_time", 60.0)
-
-    # 40% Accuracy, 40% Macro F1, 20% Training Time
-    acc_score = min(40.0, (acc_val / max(0.01, target_acc)) * 40.0) if acc_val is not None else 0.0
-    f1_score = min(40.0, (f1_val / max(0.01, target_f1)) * 40.0) if f1_val is not None else 0.0
-    time_score = 20.0 if (time_val is not None and time_val <= target_time) else 14.0
-
-    total_score = round(acc_score + f1_score + time_score, 1)
+    # Compute deterministic scores based on the student's track metrics
+    spec_metrics = USE_CASE_SPEC_METRICS.get(use_case, USE_CASE_SPEC_METRICS["Traffic Sign Recognition"])
+    total_w = sum(m["weight"] for m in spec_metrics)
 
     db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == run_id).delete()
-    db.add(ScoringBreakdown(run_id=run_id, metric_name="Accuracy", weight=40, contribution=acc_score))
-    db.add(ScoringBreakdown(run_id=run_id, metric_name="Macro F1", weight=40, contribution=f1_score))
-    db.add(ScoringBreakdown(run_id=run_id, metric_name="Training Time", weight=20, contribution=time_score))
+    total_score = 0.0
+
+    for m_cfg in spec_metrics:
+        m_key = m_cfg["metric_key"]
+        m_name = m_cfg["name"]
+        w = m_cfg["weight"]
+        target = baselines.get(m_key, m_cfg["target"])
+        direction = m_cfg["direction"]
+
+        val = dossier.extracted_metrics.get(m_key)
+        if val is not None:
+            if direction == "lower":
+                if val <= target:
+                    m_score = 100.0
+                else:
+                    m_score = max(0.0, (target / max(0.01, val)) * 100.0)
+            else:
+                if val >= target:
+                    m_score = 100.0
+                else:
+                    m_score = max(0.0, (val / max(0.01, target)) * 100.0)
+        else:
+            m_score = 0.0
+
+        contrib = round((m_score * w) / total_w, 2)
+        total_score += contrib
+        db.add(ScoringBreakdown(run_id=run_id, metric_name=m_name, weight=w, contribution=contrib))
+
+    final_total = round(min(100.0, max(0.0, total_score)), 1)
 
     # Update Run
     if run:
-        run.final_score = total_score
+        run.final_score = final_total
         run.overall_status = "REVIEW REQUIRED" if dossier.requires_review else "VERIFIED"
 
     # Generate transparent AI explanation
@@ -179,7 +195,7 @@ def validate_and_persist_notebook(
         run_id=run_id,
         user="AST_EVIDENCE_ENGINE",
         action="Semantic Validation Completed",
-        details=f"Score: {total_score}/100. Status: {run.overall_status}. {ai_summary}"
+        details=f"Score: {final_total}/100. Status: {run.overall_status}. {ai_summary}"
     ))
 
     db.commit()
