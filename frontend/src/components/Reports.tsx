@@ -31,9 +31,15 @@ export const Reports = () => {
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/reports`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+        return res.json();
+      })
       .then(data => setReports(Array.isArray(data) ? data : []))
-      .catch(console.error)
+      .catch(err => {
+        console.error("Error loading reports:", err);
+        setReports([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
