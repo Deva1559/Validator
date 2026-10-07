@@ -27,13 +27,22 @@ def normalize_higher_better(student_val: float, baseline_val: float) -> Tuple[fl
     if baseline_val <= 0:
         return (100.0 if student_val > 0 else 0.0), "MEETS BASELINE"
     
-    if student_val >= baseline_val:
+    s_val = student_val
+    b_val = baseline_val
+
+    # Scale normalization for decimal vs percentage (e.g. AUC 0.93 vs 93.0% or 54.5)
+    if s_val <= 1.5 and b_val > 1.5:
+        s_val = s_val * 100.0
+    elif b_val <= 1.5 and s_val > 1.5:
+        b_val = b_val * 100.0
+    
+    if s_val >= b_val:
         # Meets or exceeds baseline - capped at 100.0 to prevent unfair runaway score inflation
         score = 100.0
-        status = "EXCEEDS BASELINE" if student_val > baseline_val else "MEETS BASELINE"
+        status = "EXCEEDS BASELINE" if s_val > b_val else "MEETS BASELINE"
     else:
         # Below baseline: proportional ratio
-        score = max(0.0, (student_val / baseline_val) * 100.0)
+        score = max(0.0, (s_val / b_val) * 100.0)
         status = "BELOW BASELINE"
         
     return round(score, 2), status
@@ -573,15 +582,63 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
     # 4. Process each run to calculate task score, baseline score, validation quality score
     processed_runs = []
     
+    # Bulk preload evidence and findings across all latest runs (eliminates hundreds of sequential DB calls)
+    all_evs = db.query(ValidationEvidence).filter(
+        ValidationEvidence.run_id.in_(latest_run_ids)
+    ).all()
+    evidence_by_run: Dict[int, List[ValidationEvidence]] = {}
+    for ev in all_evs:
+        evidence_by_run.setdefault(ev.run_id, []).append(ev)
+
+    all_fds = db.query(ValidationFinding).filter(
+        ValidationFinding.run_id.in_(latest_run_ids)
+    ).all()
+    findings_by_run: Dict[int, List[ValidationFinding]] = {}
+    for f in all_fds:
+        findings_by_run.setdefault(f.run_id, []).append(f)
+
+    # Preload dynamic baselines and ensure fallback metrics for all 7 use cases
+    from database import DEFAULT_USE_CASE_METRICS, UseCaseConfig
+    uc_configs = {u.name: u for u in db.query(UseCaseConfig).all()}
+
+    for defn in DEFAULT_USE_CASE_METRICS:
+        uc_n = defn["use_case_name"]
+        if uc_n not in metric_configs_by_uc or not metric_configs_by_uc[uc_n]:
+            metric_configs_by_uc.setdefault(uc_n, []).append(dict(defn))
+        if uc_n not in uc_meta:
+            uc_meta[uc_n] = {"use_case_id": defn["use_case_id"], "task_type": defn["task_type"]}
+
+    try:
+        from main import TRACK_METRIC_SPECS, resolve_student_use_case
+    except ImportError:
+        TRACK_METRIC_SPECS = {}
+        def resolve_student_use_case(rn, d):
+            return getattr(rn, 'use_case', None) or 'Traffic Sign Recognition'
+
+    # Sync live targets from UseCaseConfig into metric configs
+    for uc_n, cfgs_list in metric_configs_by_uc.items():
+        if uc_n in uc_configs and uc_n in TRACK_METRIC_SPECS:
+            u_obj = uc_configs[uc_n]
+            for s in TRACK_METRIC_SPECS[uc_n]:
+                val = getattr(u_obj, s["field"], None)
+                if val is not None:
+                    for c_entry in cfgs_list:
+                        if c_entry["metric_key"] == s["metric_key"]:
+                            c_entry["baseline_target"] = float(val)
+                            c_entry["direction"] = s["direction"]
+                            c_entry["unit"] = s["unit"]
+
     for r in latest_runs:
-        uc_name = getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition'
+        uc_name = resolve_student_use_case(r, db)
+        if getattr(r, 'use_case', None) != uc_name:
+            r.use_case = uc_name
         meta = uc_meta.get(uc_name, {"use_case_id": "GTSRB", "task_type": "IMAGE_CLASSIFICATION"})
         cfgs = metric_configs_by_uc.get(uc_name, [])
         
-        # Parse metrics from ValidationEvidence
+        # Parse metrics from preloaded ValidationEvidence
         extracted_metrics = []
-        evidence_list = db.query(ValidationEvidence).filter(ValidationEvidence.run_id == r.id).all()
-        findings_list = db.query(ValidationFinding).filter(ValidationFinding.run_id == r.id).all()
+        evidence_list = evidence_by_run.get(r.id, [])
+        findings_list = findings_by_run.get(r.id, [])
         
         has_leakage = any("LEAKAGE" in (f.finding_type or "").upper() or "LEAKAGE" in (f.title or "").upper() for f in findings_list)
         has_suspicious = any("SUSPICIOUS" in (f.finding_type or "").upper() or "HARDCODED" in (f.title or "").upper() for f in findings_list)
@@ -591,14 +648,13 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
             1 for ev in evidence_list 
             if ev.evidence_type == "WORKFLOW" and ev.verification_status == "VERIFIED"
         )
-        # If no explicit WORKFLOW type evidence, default to count from findings
         if workflow_steps_count == 0:
             workflow_steps_count = 6 if r.overall_status in ["VERIFIED", "REVIEWED"] else 4
             
         time_metric_val = None
         
         for ev in evidence_list:
-            if ev.evidence_type != "METRIC" and ev.extracted_value is None:
+            if ev.evidence_type != "METRIC" or ev.extracted_value is None:
                 continue
             raw_name = (ev.metric_name or "").strip().lower()
             canonical_key = CANONICAL_METRIC_MAP.get(raw_name, raw_name)
@@ -695,29 +751,22 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
 
     ranked_all = assign_overall_ranks(all_scored_students)
 
-    # 7. Persist to Database deterministically
-    # Clear existing score cache for clean update
+    # 7. Persist to Database deterministically using bulk queries
+    all_lb_existing = {lb.run_id: lb for lb in db.query(StudentLeaderboardScore).all()}
+    all_scored_run_ids = [item["run_id"] for item in ranked_all]
+    if all_scored_run_ids:
+        from database import ScoringBreakdown
+        db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id.in_(all_scored_run_ids)).delete(synchronize_session=False)
+
+    new_breakdowns = []
     for item in ranked_all:
         r_id = item["run_id"]
-        
-        # Check by student_roll as well to ensure strict 1-to-1 mapping per student
-        roll = item["student_roll"]
-        if roll:
-            duplicates = db.query(StudentLeaderboardScore).filter(
-                StudentLeaderboardScore.student_roll == roll,
-                StudentLeaderboardScore.run_id != r_id
-            ).all()
-            for dup in duplicates:
-                db.delete(dup)
-            if duplicates:
-                db.flush()
-
-        # Check or create StudentLeaderboardScore
-        lb_rec = db.query(StudentLeaderboardScore).filter(StudentLeaderboardScore.run_id == r_id).first()
+        lb_rec = all_lb_existing.get(r_id)
         if not lb_rec:
             lb_rec = StudentLeaderboardScore(run_id=r_id)
             db.add(lb_rec)
-            
+            all_lb_existing[r_id] = lb_rec
+
         lb_rec.student_roll = item["student_roll"]
         lb_rec.student_name = item["student_name"]
         lb_rec.department = item["department"]
@@ -742,20 +791,21 @@ def recalculate_and_sync_scores(db: Session, config_id: Optional[int] = None) ->
         lb_rec.configuration_version = cfg_version
         lb_rec.updated_at = datetime.utcnow()
         
-        # Update run's final_score for backwards compatibility
+        # Update run's final_score and use_case
         item["run"].final_score = item["overall_score"]
+        item["run"].use_case = item["use_case_name"]
         
-        # Also sync ScoringBreakdown table for frontend compatibility
-        from database import ScoringBreakdown
-        db.query(ScoringBreakdown).filter(ScoringBreakdown.run_id == r_id).delete()
         for mb in item["metric_breakdowns"]:
-            db.add(ScoringBreakdown(
+            new_breakdowns.append(ScoringBreakdown(
                 run_id=r_id,
                 metric_name=mb["display_name"],
                 weight=round(mb["weight"] * 100, 1),
                 contribution=round(mb["weighted_contrib"], 2)
             ))
         
+    if new_breakdowns:
+        db.bulk_save_objects(new_breakdowns)
+
     db.commit()
     
     return {

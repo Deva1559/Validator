@@ -406,7 +406,7 @@ def auto_migrate():
     except Exception as e:
         print("Note on schema auto-migration:", e)
 
-auto_migrate()
+# auto_migrate is invoked safely in background startup worker
 
 DEFAULT_USE_CASES = [
     {
@@ -499,7 +499,7 @@ def seed_default_use_cases():
     finally:
         db.close()
 
-seed_default_use_cases()
+# seed_default_use_cases is invoked safely in background startup worker
 
 def seed_130_students():
     """Seeds or updates all 130 students from students_data.json with username=name, password=reg_no, and assigned_use_case chained 1..7."""
@@ -550,7 +550,7 @@ def seed_130_students():
     finally:
         db.close()
 
-seed_130_students()
+# seed_130_students is invoked safely in background startup worker
 
 DEFAULT_USE_CASE_METRICS = [
     # 1. Traffic Sign Recognition
@@ -636,5 +636,22 @@ def seed_use_case_metric_configs():
     finally:
         db.close()
 
-seed_use_case_metric_configs()
+def init_database_schema_and_seeds():
+    """Initializes schema and default seeds without blocking module import or Uvicorn port binding."""
+    try:
+        auto_migrate()
+    except Exception as e:
+        print("Note on schema auto-migration:", e)
+    try:
+        seed_default_use_cases()
+    except Exception as e:
+        print("Note on seeding default use cases:", e)
+    try:
+        seed_130_students()
+    except Exception as e:
+        print("Note on seeding 130 students:", e)
+    try:
+        seed_use_case_metric_configs()
+    except Exception as e:
+        print("Note on seeding use case metric configs:", e)
 
