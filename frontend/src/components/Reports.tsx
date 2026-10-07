@@ -28,19 +28,34 @@ export const Reports = () => {
   const [overrideComment, setOverrideComment] = useState<string>('');
   const [overrideLoading, setOverrideLoading] = useState(false);
   const [expandedMetricExplain, setExpandedMetricExplain] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchReports = async (retries = 3, delay = 1500) => {
+    setLoading(true);
+    setLoadError(null);
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/reports`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setReports(Array.isArray(data) ? data : []);
+        setLoading(false);
+        return;
+      } catch (err: any) {
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error("Error loading reports:", err);
+          setLoadError("Backend server is waking up or updating. Please click below to reload.");
+          setReports([]);
+          setLoading(false);
+        }
+      }
+    }
+  };
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/reports`)
-      .then(res => {
-        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
-        return res.json();
-      })
-      .then(data => setReports(Array.isArray(data) ? data : []))
-      .catch(err => {
-        console.error("Error loading reports:", err);
-        setReports([]);
-      })
-      .finally(() => setLoading(false));
+    fetchReports();
   }, []);
 
   const openEvidence = async (run: any) => {
@@ -266,6 +281,18 @@ export const Reports = () => {
           <div className="col-span-full py-20 text-center text-slate-400 card-3d">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-3"></div>
             <div className="font-semibold text-slate-600">Loading student audit records...</div>
+          </div>
+        ) : loadError ? (
+          <div className="col-span-full py-14 text-center card-3d border-amber-200 bg-amber-50/50">
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800 mb-1">Server Reconnecting</h3>
+            <p className="text-sm text-slate-600 max-w-md mx-auto mb-4">{loadError}</p>
+            <button
+              onClick={() => fetchReports()}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+            >
+              Retry Connection
+            </button>
           </div>
         ) : filteredReports.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-400 card-3d font-medium">
