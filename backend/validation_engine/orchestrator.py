@@ -160,7 +160,20 @@ def validate_and_persist_notebook(
         m_key = m_cfg["metric_key"]
         m_name = m_cfg["name"]
         w = m_cfg["weight"]
-        target = baselines.get(m_key, m_cfg["target"])
+        target = baselines.get(m_key)
+        if target is None:
+            if m_key == "accuracy":
+                target = baselines.get("accuracy")
+            elif m_key == "macro_f1":
+                target = baselines.get("macro_f1")
+            elif m_key == "training_time":
+                target = baselines.get("training_time")
+        if target is None:
+            target = m_cfg["target"]
+        try:
+            target = float(target)
+        except Exception:
+            target = float(m_cfg["target"])
         direction = m_cfg["direction"]
 
         val = dossier.extracted_metrics.get(m_key)

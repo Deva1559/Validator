@@ -71,6 +71,12 @@ async def app_startup_event():
         seed_student_submissions(force_refresh=False)
     except Exception as e:
         print("Note on startup seed:", e)
+    try:
+        _db = SessionLocal()
+        recalculate_all_runs_against_baselines(_db)
+        _db.close()
+    except Exception as e:
+        print("Note on startup baseline recalculation:", e)
 
 def get_db():
     db = SessionLocal()
@@ -556,6 +562,44 @@ def get_student_profile(roll_no: str, db: Session = Depends(get_db)):
         ]
     }
 
+TRACK_METRIC_SPECS: Dict[str, List[Dict[str, Any]]] = {
+    "Traffic Sign Recognition": [
+        {"field": "accuracy", "metric_key": "accuracy", "name": "Model Accuracy", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "macro_f1", "metric_key": "macro_f1", "name": "Macro-F1 Score", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "training_time", "metric_key": "training_time", "name": "Training Time", "unit": "s", "direction": "lower", "weight": 20},
+    ],
+    "Crop Leaf Disease Classification": [
+        {"field": "accuracy", "metric_key": "accuracy", "name": "Diagnostic Accuracy", "unit": "%", "direction": "higher", "weight": 45},
+        {"field": "macro_f1", "metric_key": "macro_f1", "name": "Macro-F1 Score", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "training_time", "metric_key": "confusion_matrix_quality", "name": "Confusion Matrix", "unit": "%", "direction": "higher", "weight": 15},
+    ],
+    "Face Mask Detection": [
+        {"field": "accuracy", "metric_key": "map50", "name": "mAP@0.5 Detection", "unit": "%", "direction": "higher", "weight": 50},
+        {"field": "macro_f1", "metric_key": "precision", "name": "Detection Precision", "unit": "%", "direction": "higher", "weight": 25},
+        {"field": "training_time", "metric_key": "recall", "name": "Compliance Recall", "unit": "%", "direction": "higher", "weight": 25},
+    ],
+    "Pet Image Segmentation": [
+        {"field": "accuracy", "metric_key": "dice", "name": "Dice Coefficient", "unit": "%", "direction": "higher", "weight": 45},
+        {"field": "macro_f1", "metric_key": "iou", "name": "Mean IoU (Jaccard)", "unit": "%", "direction": "higher", "weight": 35},
+        {"field": "training_time", "metric_key": "pixel_accuracy", "name": "Pixel Accuracy", "unit": "%", "direction": "higher", "weight": 20},
+    ],
+    "Image Generation with GANs": [
+        {"field": "accuracy", "metric_key": "fid", "name": "FID on Small Sample", "unit": "", "direction": "lower", "weight": 45},
+        {"field": "macro_f1", "metric_key": "generator_loss_stability", "name": "G & D Loss Curves", "unit": "%", "direction": "higher", "weight": 30},
+        {"field": "training_time", "metric_key": "discriminator_loss_stability", "name": "Sample-Image Grid", "unit": "%", "direction": "higher", "weight": 25},
+    ],
+    "Image Captioning": [
+        {"field": "accuracy", "metric_key": "bleu1", "name": "BLEU-1 Score", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "macro_f1", "metric_key": "bleu4", "name": "BLEU-4 Score", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "training_time", "metric_key": "caption_cider", "name": "Sample Captions", "unit": "", "direction": "higher", "weight": 20},
+    ],
+    "Pneumonia Detection from Chest X-Rays": [
+        {"field": "accuracy", "metric_key": "recall", "name": "Clinical Recall", "unit": "%", "direction": "higher", "weight": 40},
+        {"field": "macro_f1", "metric_key": "auc", "name": "ROC-AUC Score", "unit": "", "direction": "higher", "weight": 30},
+        {"field": "training_time", "metric_key": "f1", "name": "Diagnostic F1 Score", "unit": "%", "direction": "higher", "weight": 30},
+    ]
+}
+
 @app.post("/upload")
 async def upload_notebooks(
     background_tasks: BackgroundTasks, 
@@ -579,18 +623,22 @@ async def upload_notebooks(
             final_roll = roll_no.strip() if roll_no and roll_no.strip() else "24AM001"
             final_use_case = use_case.strip() if use_case and use_case.strip() else "Traffic Sign Recognition"
             
-            # Resolve use case specific baseline
+            # Resolve use case specific baseline dynamically from UseCaseConfig
             uc_config = db.query(UseCaseConfig).filter(UseCaseConfig.name == final_use_case).first()
             baseline_for_run = {
+                "use_case": final_use_case,
                 "accuracy": uc_config.accuracy if uc_config else current_baselines.accuracy,
                 "macro_f1": uc_config.macro_f1 if uc_config else current_baselines.macro_f1,
                 "training_time": uc_config.training_time if uc_config else current_baselines.training_time,
                 "time_comparison": uc_config.time_comparison if uc_config else current_baselines.time_comparison,
-                "use_case": final_use_case
             }
-            track_specs = USE_CASE_SPEC_METRICS.get(final_use_case, [])
+            track_specs = TRACK_METRIC_SPECS.get(final_use_case, TRACK_METRIC_SPECS["Traffic Sign Recognition"])
             for s in track_specs:
-                baseline_for_run[s["metric_key"]] = s["target"]
+                f_name = s["field"]
+                m_key = s["metric_key"]
+                val = getattr(uc_config, f_name, None) if uc_config else None
+                if val is not None:
+                    baseline_for_run[m_key] = float(val)
             
             # Create DB record with student metadata and chosen use case
             run = ValidationRun(
@@ -636,45 +684,7 @@ async def upload_notebooks(
     
     invalidate_global_caches()
     return {"uploaded": len(files), "results": results}
-
-def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optional[BaselineConfig] = None):
-    runs = db.query(ValidationRun).all()
-    uc_configs = {u.name: u for u in db.query(UseCaseConfig).all()}
-    
-    for r in runs:
-        uc_name = getattr(r, 'use_case', 'Traffic Sign Recognition') or 'Traffic Sign Recognition'
-        spec_list = USE_CASE_SPEC_METRICS.get(uc_name, USE_CASE_SPEC_METRICS.get("Traffic Sign Recognition", []))
-        spec_by_key = {s["metric_key"]: s for s in spec_list}
-        
-        # Update baseline references in evidence for all 7 use cases
-        for ev in r.evidence:
-            canon_key = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
-            spec = spec_by_key.get(canon_key)
-            if spec:
-                target = spec["target"]
-                unit = spec["unit"]
-                direction = spec["direction"]
-                ev.baseline_value = f"{target}{unit}" if unit else f"{target}"
-                
-                if ev.verification_status == "VERIFIED" and ev.extracted_value:
-                    try:
-                        clean_str = str(ev.extracted_value).replace("%", "").replace("s", "").strip()
-                        val = float(clean_str)
-                    except Exception:
-                        m = re.search(r'[-+]?\d*\.?\d+', str(ev.extracted_value))
-                        val = float(m.group(0)) if m else None
-                        
-                    if val is not None:
-                        diff = round(val - target, 2)
-                        ev.difference_from_baseline = f"{diff:+.2f}{unit} vs target"
-                        if direction == "lower":
-                            ev.baseline_status = "Within target threshold" if val <= target else "Exceeds target limit"
-                        else:
-                            ev.baseline_status = "Above target baseline" if val >= target else "Below target baseline"
-                            
-    db.commit()
-    recalculate_and_sync_scores(db)
-    invalidate_global_caches()
+# Dynamic recalculation function defined below after USE_CASE_DASHBOARD_METRICS
 
 # ---------------------------------------------------------------------
 # MULTI-TASK DASHBOARD METRICS DEFINITIONS & STUDENT ROSTER MAPPING
@@ -983,10 +993,56 @@ USE_CASE_DASHBOARD_METRICS = {
             "source_cell": 13,
             "code_snippet": "f1_diag = f1_score(y_test_radiograph, pred_radiograph)\nprint(f'Diagnostic F1: {f1_diag * 100:.2f}%')",
             "output_template": "Diagnostic F1 Score: {val:.2f}% (Harmonic balance of sensitivity & precision)",
-            "explanation": "Harmonic balance of sensitivity and precision ensuring high recall without overwhelming clinicians with false alarms."
         }
     ]
 }
+
+def get_dynamic_metrics_for_use_case(
+    use_case_name: str,
+    db: Optional[Session] = None,
+    uc_config_map: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """Returns the 3 metrics for the specified use case with active dynamic targets from UseCaseConfig."""
+    canonical_uc = use_case_name.strip() if use_case_name else "Traffic Sign Recognition"
+    base_list = USE_CASE_DASHBOARD_METRICS.get(canonical_uc, USE_CASE_DASHBOARD_METRICS["Traffic Sign Recognition"])
+    specs = TRACK_METRIC_SPECS.get(canonical_uc, TRACK_METRIC_SPECS["Traffic Sign Recognition"])
+
+    uc_cfg = None
+    if uc_config_map and canonical_uc in uc_config_map:
+        uc_cfg = uc_config_map[canonical_uc]
+    elif db:
+        try:
+            uc_cfg = db.query(UseCaseConfig).filter(UseCaseConfig.name == canonical_uc).first()
+        except Exception:
+            pass
+
+    target_map: Dict[str, float] = {}
+    direction_map: Dict[str, str] = {}
+    unit_map: Dict[str, str] = {}
+    for s in specs:
+        k = s["metric_key"]
+        direction_map[k] = s["direction"]
+        unit_map[k] = s["unit"]
+        if uc_cfg:
+            val = getattr(uc_cfg, s["field"], None)
+            if val is not None:
+                try:
+                    target_map[k] = float(val)
+                except Exception:
+                    pass
+
+    merged = []
+    for defn in base_list:
+        d = dict(defn)
+        k = d.get("metric_key", "")
+        if k in target_map:
+            d["target"] = target_map[k]
+        if k in direction_map:
+            d["direction"] = direction_map[k]
+        if k in unit_map:
+            d["unit"] = unit_map[k]
+        merged.append(d)
+    return merged
 
 def resolve_student_use_case(
     r: Optional[ValidationRun],
@@ -1037,16 +1093,81 @@ def resolve_student_use_case(
 
     return "Traffic Sign Recognition"
 
+def recalculate_all_runs_against_baselines(db: Session, default_baselines: Optional[BaselineConfig] = None):
+    """
+    Recalculates all validation runs against the active dynamic baselines for all 7 use cases and all users.
+    Synchronizes ValidationEvidence (baseline_value, difference_from_baseline, baseline_status, verification_status)
+    and invokes scoring engine recalculation so that all student scores reflect faculty's updated criteria.
+    """
+    runs = db.query(ValidationRun).all()
+    uc_configs = {u.name: u for u in db.query(UseCaseConfig).all()}
+    
+    for r in runs:
+        uc_name = resolve_student_use_case(r, db)
+        dynamic_specs = get_dynamic_metrics_for_use_case(uc_name, db=db, uc_config_map=uc_configs)
+        spec_by_key = {s["metric_key"]: s for s in dynamic_specs}
+        
+        # Update baseline references in evidence for all 7 use cases
+        for ev in r.evidence:
+            if ev.evidence_type != "METRIC":
+                continue
+            canon_key = CANONICAL_METRIC_MAP.get((ev.metric_name or "").strip().lower(), (ev.metric_name or "").strip().lower())
+            spec = spec_by_key.get(canon_key)
+            if spec:
+                target = float(spec["target"])
+                unit = spec.get("unit", "")
+                direction = spec.get("direction", "higher")
+                
+                target_disp = f"≤ {target}{unit}" if direction == "lower" else f"≥ {target}{unit}"
+                ev.baseline_value = target_disp
+                
+                clean_str = str(ev.extracted_value or "").replace("%", "").replace("s", "").strip()
+                val = None
+                try:
+                    val = float(clean_str)
+                except Exception:
+                    m = re.search(r'[-+]?\d*\.?\d+', clean_str)
+                    val = float(m.group(0)) if m else None
+                    
+                if val is not None:
+                    passed = (val <= target) if direction == "lower" else (val >= target)
+                    diff = round(target - val, 2) if direction == "lower" else round(val - target, 2)
+                    diff_sign = "+" if diff >= 0 else ""
+                    diff_unit = unit if unit not in ["", "score"] else ""
+                    ev.difference_from_baseline = f"{diff_sign}{diff}{diff_unit} vs target"
+                    
+                    explanation = spec.get("explanation", spec.get("desc", ""))
+                    extracted_fmt = f"{val}{diff_unit}"
+                    
+                    if direction == "lower":
+                        if passed:
+                            ev.baseline_status = f"Achieved {extracted_fmt} (within target threshold {target_disp}). {explanation}".strip()
+                        else:
+                            ev.baseline_status = f"Achieved {extracted_fmt} (exceeds target limit {target_disp}). {explanation}".strip()
+                    else:
+                        if passed:
+                            ev.baseline_status = f"Achieved {extracted_fmt} (meets/exceeds target baseline {target_disp}). {explanation}".strip()
+                        else:
+                            ev.baseline_status = f"Achieved {extracted_fmt} (below target baseline {target_disp}). {explanation}".strip()
+                            
+                    ev.verification_status = "VERIFIED" if passed else "REVIEW REQUIRED"
+                    ev.confidence_score = 96.5 if passed else 88.0
+
+    db.commit()
+    recalculate_and_sync_scores(db)
+    invalidate_global_caches()
+
 def compute_task_metrics_for_run(
     r: ValidationRun,
     use_case_name: str,
     db: Optional[Session] = None,
     score_map: Optional[Dict[str, Any]] = None,
-    evidence_map: Optional[Dict[int, List[Any]]] = None
+    evidence_map: Optional[Dict[int, List[Any]]] = None,
+    uc_config_map: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
-    """Generates the 3 particular dashboard metrics for this student's assigned task."""
+    """Generates the 3 particular dashboard metrics for this student's assigned task using dynamic baselines."""
     roll = (getattr(r, 'roll_no', None) or "").strip().upper()
-    metric_defs = USE_CASE_DASHBOARD_METRICS.get(use_case_name, USE_CASE_DASHBOARD_METRICS["Traffic Sign Recognition"])
+    metric_defs = get_dynamic_metrics_for_use_case(use_case_name, db=db, uc_config_map=uc_config_map)
     
     # Try loading from StudentLeaderboardScore first
     cached_metrics = None
@@ -1107,8 +1228,8 @@ def compute_task_metrics_for_run(
     for defn in metric_defs:
         k = defn["metric_key"]
         target = float(defn["target"])
-        direction = defn["direction"]
-        unit = defn["unit"]
+        direction = defn.get("direction", "higher")
+        unit = defn.get("unit", "")
         
         # Priority 1: Checked cached leaderboard metrics
         if k in cached_map and cached_map[k].get("raw_value") is not None:
@@ -1122,7 +1243,7 @@ def compute_task_metrics_for_run(
 
         passed = (raw_v <= target) if direction == "lower" else (raw_v >= target)
         diff = round(target - raw_v, 2) if direction == "lower" else round(raw_v - target, 2)
-        diff_str = f"{'+' if diff >= 0 else ''}{diff}{unit if unit != 'score' else ''}"
+        diff_str = f"{'+' if diff >= 0 else ''}{diff}{unit if unit not in ['', 'score'] else ''}"
         
         status = "EXCEEDS BASELINE" if diff > 0 else ("MEETS BASELINE" if diff == 0 else "BELOW BASELINE")
         fmt_v = f"{raw_v}{unit if unit not in ['', 'score'] else ''}"
@@ -1144,9 +1265,14 @@ def compute_task_metrics_for_run(
 
     return task_metrics
 
-def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str, db: Optional[Session] = None) -> List[Dict[str, Any]]:
-    """Builds the 3 particular dashboard metric evidence items for the report evidence drawer."""
-    metric_defs = USE_CASE_DASHBOARD_METRICS.get(use_case_name, USE_CASE_DASHBOARD_METRICS["Traffic Sign Recognition"])
+def build_metric_evidence_for_run(
+    r: Optional[ValidationRun], 
+    use_case_name: str, 
+    db: Optional[Session] = None,
+    uc_config_map: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """Builds the 3 particular dashboard metric evidence items for the report evidence drawer dynamically."""
+    metric_defs = get_dynamic_metrics_for_use_case(use_case_name, db=db, uc_config_map=uc_config_map)
     
     # Check if run already has verified metric evidence in DB
     existing_by_canon: Dict[str, ValidationEvidence] = {}
@@ -1176,32 +1302,71 @@ def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str
     items = []
     for idx, defn in enumerate(metric_defs):
         target = float(defn["target"])
-        direction = defn["direction"]
-        unit = defn["unit"]
+        direction = defn.get("direction", "higher")
+        unit = defn.get("unit", "")
         metric_k = defn.get("metric_key", "")
+        target_display = f"≤ {target}{unit}" if direction == "lower" else f"≥ {target}{unit}"
         
         # Check if existing ValidationEvidence is present
         if metric_k in existing_by_canon:
             ev = existing_by_canon[metric_k]
+            clean_str = str(ev.extracted_value or "").replace("%", "").replace("s", "").strip()
+            num_v = None
+            try:
+                num_v = float(clean_str)
+            except Exception:
+                m = re.search(r'[-+]?\d*\.?\d+', clean_str)
+                num_v = float(m.group(0)) if m else None
+
+            if num_v is not None:
+                passed = (num_v <= target) if direction == "lower" else (num_v >= target)
+                diff = round(target - num_v, 2) if direction == "lower" else round(num_v - target, 2)
+                diff_sign = "+" if diff >= 0 else ""
+                diff_unit = unit if unit not in ["", "score"] else ""
+                diff_str = f"{diff_sign}{diff}{diff_unit} vs target"
+                
+                extracted_disp = str(ev.extracted_value)
+                if direction == "lower":
+                    if passed:
+                        status_str = f"Achieved {extracted_disp} (within target threshold {target_display}). {defn['explanation']}".strip()
+                    else:
+                        status_str = f"Achieved {extracted_disp} (exceeds target limit {target_display}). {defn['explanation']}".strip()
+                else:
+                    if passed:
+                        status_str = f"Achieved {extracted_disp} (meets/exceeds target baseline {target_display}). {defn['explanation']}".strip()
+                    else:
+                        status_str = f"Achieved {extracted_disp} (below target baseline {target_display}). {defn['explanation']}".strip()
+
+                verif_status = "VERIFIED" if passed else "REVIEW REQUIRED"
+                
+                ev.baseline_value = target_display
+                ev.difference_from_baseline = diff_str
+                ev.baseline_status = status_str
+                ev.verification_status = verif_status
+            else:
+                diff_str = ev.difference_from_baseline or "Compliant"
+                status_str = ev.baseline_status or f"Verified {ev.extracted_value}"
+                verif_status = ev.verification_status or "VERIFIED"
+
             items.append({
                 "id": f"task-ev-{idx+1}",
                 "run_id": r.id if r else 0,
                 "metric_name": defn["name"],
                 "evidence_type": "METRIC",
                 "extracted_value": str(ev.extracted_value),
-                "baseline_value": str(ev.baseline_value or (f"≤ {target}{unit}" if direction == "lower" else f"≥ {target}{unit}")),
-                "difference_from_baseline": str(ev.difference_from_baseline or "Compliant"),
-                "baseline_status": str(ev.baseline_status or f"Verified {ev.extracted_value}"),
-                "verification_status": ev.verification_status or "VERIFIED",
-                "confidence_score": ev.confidence_score or 98.0,
+                "baseline_value": target_display,
+                "difference_from_baseline": diff_str,
+                "baseline_status": status_str,
+                "verification_status": verif_status,
+                "confidence_score": ev.confidence_score or (98.0 if verif_status == "VERIFIED" else 88.0),
                 "detection_method": ev.detection_method or defn["detection_method"],
                 "source_cell": ev.source_cell or defn["source_cell"],
                 "relevant_code": ev.relevant_code or defn["code_snippet"],
-                "relevant_output": ev.relevant_output or defn["output_template"].format(val=target)
+                "relevant_output": ev.relevant_output or defn["output_template"].format(val=num_v if num_v is not None else target)
             })
             continue
 
-        # Otherwise resolve value from cached_map or baseline target
+        # Otherwise resolve value from cached_map or baseline target fallback
         if metric_k in cached_map and cached_map[metric_k].get("raw_value") is not None:
             raw_v = float(cached_map[metric_k]["raw_value"])
         else:
@@ -1211,9 +1376,13 @@ def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str
         diff = round(target - raw_v, 2) if direction == "lower" else round(raw_v - target, 2)
         diff_str = f"{'+' if diff >= 0 else ''}{diff}{unit if unit not in ['', 'score'] else ''} vs target"
         
-        target_display = f"≤ {target}{unit}" if direction == "lower" else f"≥ {target}{unit}"
         extracted_display = f"{raw_v}{unit if unit not in ['', 'score'] else ''}"
         output_text = defn["output_template"].format(val=raw_v)
+        
+        if direction == "lower":
+            status_text = f"Achieved {extracted_display} ({'within target threshold' if passed else 'exceeds target limit'} {target_display}). {defn['explanation']}".strip()
+        else:
+            status_text = f"Achieved {extracted_display} ({'meets/exceeds target baseline' if passed else 'below target baseline'} {target_display}). {defn['explanation']}".strip()
 
         items.append({
             "id": f"task-ev-{idx+1}",
@@ -1223,7 +1392,7 @@ def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str
             "extracted_value": extracted_display,
             "baseline_value": target_display,
             "difference_from_baseline": diff_str,
-            "baseline_status": f"Achieved {extracted_display} vs target {target_display}. {defn['explanation']}",
+            "baseline_status": status_text,
             "verification_status": "VERIFIED" if passed else "REVIEW REQUIRED",
             "confidence_score": 96.5 if passed else 88.0,
             "detection_method": defn["detection_method"],
@@ -1231,20 +1400,27 @@ def build_metric_evidence_for_run(r: Optional[ValidationRun], use_case_name: str
             "relevant_code": defn["code_snippet"],
             "relevant_output": output_text
         })
+        
+    if db and r:
+        try:
+            db.commit()
+        except Exception:
+            pass
+            
     return items
 
 def build_scoring_breakdown_for_run(r: Optional[ValidationRun], use_case_name: str, final_score: float, db: Optional[Session] = None) -> List[Dict[str, Any]]:
-    """Builds deterministic scoring breakdown table for the student's assigned task."""
-    metric_defs = USE_CASE_DASHBOARD_METRICS.get(use_case_name, USE_CASE_DASHBOARD_METRICS["Traffic Sign Recognition"])
+    """Builds deterministic scoring breakdown table for the student's assigned task using dynamic baselines."""
+    metric_defs = get_dynamic_metrics_for_use_case(use_case_name, db=db)
     breakdown = []
     total_w = sum(d["weight"] for d in metric_defs)
     
     for defn in metric_defs:
         w = defn["weight"]
         target = defn["target"]
-        unit = defn["unit"]
-        direction = defn["direction"]
-        target_str = f"<= {target}{unit}" if direction == "lower" else f">= {target}{unit}"
+        unit = defn.get("unit", "")
+        direction = defn.get("direction", "higher")
+        target_str = f"≤ {target}{unit}" if direction == "lower" else f"≥ {target}{unit}"
         contrib = round((w / total_w) * final_score, 1)
 
         breakdown.append({
@@ -1264,13 +1440,19 @@ def format_run_data(
     score_map: Optional[Dict[str, Any]] = None,
     user_map: Optional[Dict[str, Any]] = None,
     evidence_map: Optional[Dict[int, List[Any]]] = None,
-    findings_map: Optional[Dict[int, List[Any]]] = None
+    findings_map: Optional[Dict[int, List[Any]]] = None,
+    uc_config_map: Optional[Dict[str, Any]] = None
 ):
     # Deterministically resolve student's assigned task
     use_case_name = resolve_student_use_case(r, db, score_map=score_map, user_map=user_map)
     
-    # Build the 3 particular dashboard metrics for this assigned task
-    task_metrics = compute_task_metrics_for_run(r, use_case_name, db, score_map=score_map, evidence_map=evidence_map)
+    # Build the 3 particular dashboard metrics for this assigned task using dynamic baselines
+    task_metrics = compute_task_metrics_for_run(
+        r, use_case_name, db, 
+        score_map=score_map, 
+        evidence_map=evidence_map,
+        uc_config_map=uc_config_map
+    )
     baselines_passed_count = sum(1 for m in task_metrics if m.get("passed"))
     total_baselines = len(task_metrics)
     
@@ -1908,6 +2090,14 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] =
             except Exception:
                 pass
 
+        # Preload UseCaseConfigs for dynamic baseline criteria
+        uc_config_map = {}
+        try:
+            for u in db.query(UseCaseConfig).all():
+                uc_config_map[u.name] = u
+        except Exception:
+            pass
+
         # Assign sequential run_number counting strictly from 1
         formatted = []
         for i, r in enumerate(chronological_runs):
@@ -1917,7 +2107,8 @@ def get_all_reports(roll_no: Optional[str] = None, latest_only: Optional[bool] =
                 score_map=score_map,
                 user_map=user_map,
                 evidence_map=evidence_map,
-                findings_map=findings_map
+                findings_map=findings_map,
+                uc_config_map=uc_config_map
             )
             formatted.append(item)
             
@@ -2465,15 +2656,45 @@ def update_use_case_baselines(req: BatchUseCaseUpdateRequest, db: Session = Depe
     for item in req.use_cases:
         uc = db.query(UseCaseConfig).filter(UseCaseConfig.name == item.name).first()
         if uc:
-            uc.accuracy = item.accuracy
-            uc.macro_f1 = item.macro_f1
-            uc.training_time = item.training_time
+            uc.accuracy = float(item.accuracy)
+            uc.macro_f1 = float(item.macro_f1)
+            uc.training_time = float(item.training_time)
             if item.time_comparison:
                 uc.time_comparison = item.time_comparison
             if item.student_quota is not None:
                 uc.student_quota = item.student_quota
+
+            # Synchronize UseCaseMetricConfig for all 3 metrics of this use case
+            specs = TRACK_METRIC_SPECS.get(item.name, [])
+            for s in specs:
+                f_name = s["field"]
+                m_key = s["metric_key"]
+                new_val = float(getattr(item, f_name))
+                mc = db.query(UseCaseMetricConfig).filter(
+                    UseCaseMetricConfig.use_case_name == item.name,
+                    UseCaseMetricConfig.metric_key == m_key
+                ).first()
+                if mc:
+                    mc.baseline_target = new_val
+                    mc.direction = s["direction"]
+                    mc.unit = s["unit"]
+                else:
+                    db.add(UseCaseMetricConfig(
+                        use_case_id=item.name[:10].upper(),
+                        use_case_name=item.name,
+                        task_type="ML_TASK",
+                        dataset_name=item.name,
+                        metric_key=m_key,
+                        metric_display_name=s["name"],
+                        direction=s["direction"],
+                        weight=s["weight"] / 100.0,
+                        baseline_target=new_val,
+                        unit=s["unit"]
+                    ))
+
     db.commit()
     recalculate_all_runs_against_baselines(db)
+    invalidate_global_caches()
     
     updated = db.query(UseCaseConfig).order_by(UseCaseConfig.id).all()
     return {

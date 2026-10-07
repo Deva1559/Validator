@@ -192,14 +192,19 @@ def synthesize_validation_evidence(
         m_name = metric_spec["name"]
         unit = metric_spec["unit"]
         direction = metric_spec["direction"]
-        # Allow baseline override from target_baselines
-        target_val = target_baselines.get(m_key, metric_spec["target"])
-        if m_key == "accuracy" and "accuracy" in target_baselines:
-            target_val = target_baselines["accuracy"]
+        # Allow dynamic baseline override from target_baselines
+        target_val = metric_spec["target"]
+        if m_key in target_baselines and target_baselines[m_key] is not None:
+            try:
+                target_val = float(target_baselines[m_key])
+            except Exception:
+                target_val = metric_spec["target"]
+        elif m_key == "accuracy" and "accuracy" in target_baselines:
+            target_val = float(target_baselines["accuracy"])
         elif m_key == "macro_f1" and "macro_f1" in target_baselines:
-            target_val = target_baselines["macro_f1"]
+            target_val = float(target_baselines["macro_f1"])
         elif m_key == "training_time" and "training_time" in target_baselines:
-            target_val = target_baselines["training_time"]
+            target_val = float(target_baselines["training_time"])
 
         cands = metric_candidates.get(m_key, [])
         verified_cands = [c for c in cands if c.verification_status == "VERIFIED"]
@@ -209,13 +214,16 @@ def synthesize_validation_evidence(
             dossier.extracted_metrics[m_key] = chosen.value
             
             passed = (chosen.value <= target_val) if direction == "lower" else (chosen.value >= target_val)
-            target_disp = f"<= {target_val}{unit}" if direction == "lower" else f">= {target_val}{unit}"
-            status_desc = f"Achieved {chosen.value}{unit} vs target {target_disp}. {chosen.reason}"
+            target_disp = f"≤ {target_val}{unit}" if direction == "lower" else f"≥ {target_val}{unit}"
+            if direction == "lower":
+                status_desc = f"Achieved {chosen.value}{unit} ({'within target threshold' if passed else 'exceeds target limit'} {target_disp}). {chosen.reason}"
+            else:
+                status_desc = f"Achieved {chosen.value}{unit} ({'meets/exceeds target baseline' if passed else 'below target baseline'} {target_disp}). {chosen.reason}"
             
             dossier.evidence_items.append(EvidenceItem(
                 concept=m_name,
                 evidence_type="METRIC",
-                status="VERIFIED",
+                status="VERIFIED" if passed else "REVIEW REQUIRED",
                 detection_methods=["AST", "RUNTIME"] if chosen.provenance == "COMPUTED_FUNCTION" else ["AST", "DATA_FLOW"],
                 cells=[chosen.cell_index],
                 extracted_value=f"{chosen.value}{unit}",

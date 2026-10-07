@@ -824,7 +824,9 @@ export const Reports = () => {
                               <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Baseline Comparison</p>
                               <p className="text-xs text-slate-700 font-medium">Faculty Target: <span className="font-mono font-bold text-slate-900">{e.baseline_value}</span></p>
                               {e.difference_from_baseline && (
-                                <p className="text-xs font-mono font-bold text-emerald-600 mt-0.5">{e.difference_from_baseline}</p>
+                                <p className={`text-xs font-mono font-bold mt-0.5 ${(e.difference_from_baseline.includes('-') || e.difference_from_baseline.includes('over')) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {e.difference_from_baseline}
+                                </p>
                               )}
                               <p className="text-[11px] text-slate-500 mt-1">{e.baseline_status}</p>
                             </div>
