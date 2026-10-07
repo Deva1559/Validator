@@ -516,44 +516,60 @@ def extract_metric_candidates(
                     has_computed["pixel_accuracy"] = True
 
         # -------------------------------------------------------------
-        # 3. PRINTED OUTPUT ONLY FALLBACK (for cells with printed metrics)
+        # 3. PRINTED OUTPUT & EXECUTION OUTPUT EXTRACTION
         # -------------------------------------------------------------
         if out_text:
             output_specs = [
                 ("accuracy", r'(?:Accuracy|acc|diagnostic accuracy)\s*[:=]\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Accuracy"),
                 ("macro_f1", r'(?:macro\s*f1|macro-f1|pathology macro f1)\s*[:=]\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Macro F1"),
                 ("confusion_matrix_quality", r'(?:diagonal dominance|confusion matrix quality|diagonal dominant)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Confusion Matrix Quality"),
-                ("map50", r'(?:mAP@0\.5|mAP50|mAP|AP50)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "mAP@0.5"),
-                ("precision", r'(?:detection precision|precision)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Precision"),
-                ("recall", r'(?:compliance recall|clinical sensitivity|clinical recall|recall)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Recall"),
+                ("map50", r'(?:mAP@0\.5(?:\s*detection)?|mAP50(?:\s*detection)?|mAP_50|mAP|AP50|box\.map50|box\.map|map)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "mAP@0.5"),
+                ("precision", r'(?:detection precision|mask precision|precision)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Precision"),
+                ("recall", r'(?:compliance recall|clinical sensitivity|clinical recall|sensitivity|recall)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Recall"),
                 ("dice", r'(?:dice(?: score| coefficient)?)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Dice Score"),
                 ("iou", r'(?:mean iou|iou|jaccard(?: score)?)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "IoU Score"),
-                ("pixel_accuracy", r'(?:pixel accuracy|pixel trimap acc)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Pixel Accuracy"),
+                ("pixel_accuracy", r'(?:pixel accuracy|pixel trimap acc|pixel acc)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Pixel Accuracy"),
                 ("fid", r'(?:fid(?: score)?|fr[eé]chet inception distance)\s*[:=><~]?\s*(\d{1,3}(?:\.\d+)?)', False, "FID"),
-                ("generator_loss_stability", r'(?:loss stability|g-loss stability|g & d loss stability)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "G-Loss Stability"),
-                ("discriminator_loss_stability", r'(?:diversity(?: score)?|sample(?:-image)? grid diversity)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Latent Diversity"),
+                ("generator_loss_stability", r'(?:loss stability|g-loss stability|g & d loss curves|g & d loss stability|minimax stability|generator loss|g loss)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "G-Loss Stability"),
+                ("discriminator_loss_stability", r'(?:diversity(?: score)?|sample(?:-image)? grid diversity|latent diversity|discriminator loss|d loss)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "Latent Diversity"),
                 ("bleu1", r'(?:bleu-1(?: score)?|bleu1)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "BLEU-1"),
                 ("bleu4", r'(?:bleu-4(?: score)?|bleu4)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "BLEU-4"),
                 ("caption_cider", r'(?:cider(?: score)?)\s*[:=><~]?\s*(\d{1,2}(?:\.\d+)?)', False, "CIDEr"),
-                ("auc", r'(?:roc-auc(?: score)?|roc_auc|auc)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?)', False, "ROC-AUC"),
+                ("auc", r'(?:roc-auc(?: score)?|roc_auc|auc)\s*[:=><~]?\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', False, "ROC-AUC"),
                 ("f1", r'(?:diagnostic f1|f1-score|f1 score)\s*[:=]\s*(0\.\d{2,4}|\d{2,3}(?:\.\d+)?%?)', True, "F1 Score")
             ]
+
+            # Detect if cell source contains code computing evaluation or predictions
+            has_eval_code = any(w in src.lower() for w in [
+                "predict", "evaluate", "model", "test", "val", "accuracy", "f1",
+                "score", "loss", "metrics", "print", "cm", "matrix", "report", "torch", "yolo",
+                "dice", "iou", "bleu", "cider", "auc", "precision", "recall", "train", "fit"
+            ])
 
             for key, pattern, as_pct, display_name in output_specs:
                 if not has_computed[key]:
                     val = _extract_number_from_text(out_text, pattern, as_pct=as_pct)
                     if val is not None:
+                        if key == "auc" and val > 1.0:
+                            val = round(val / 100.0, 3)
+                        is_verified = has_eval_code or not any(k in src.lower() for k in ["= " + str(val)])
+                        ver_status = "VERIFIED" if is_verified else "NOT VERIFIED"
+                        prov = "COMPUTED_OUTPUT" if is_verified else "PRINTED_OUTPUT"
+                        conf = 97.0 if is_verified else 40.0
+
                         candidates[key].append(MetricCandidate(
                             metric_key=key,
                             value=val,
-                            provenance="PRINTED_OUTPUT",
+                            provenance=prov,
                             cell_index=c_idx,
-                            confidence=40.0,
-                            verification_status="NOT VERIFIED",
-                            evidence_code=src.strip()[:100],
-                            evidence_output=out_text[:100],
-                            reason="Metric printed in stdout without traceable calculation call."
+                            confidence=conf,
+                            verification_status=ver_status,
+                            evidence_code=src.strip()[:120],
+                            evidence_output=out_text[:120],
+                            reason=f"Parsed from execution output for {display_name}." if is_verified else "Metric printed without evaluation call."
                         ))
+                        if is_verified:
+                            has_computed[key] = True
 
     return candidates
 

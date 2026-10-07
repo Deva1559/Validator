@@ -267,11 +267,41 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
   const avgAccuracy = currentLiveUc?.avg_accuracy ?? 0;
   const avgMacroF1 = currentLiveUc?.avg_macro_f1 ?? 0;
   const avgTrainingTime = currentLiveUc?.avg_training_time ?? 0;
+  const avgConfusionMatrix = currentLiveUc?.avg_confusion_matrix ?? 0;
+  const avgMap50 = currentLiveUc?.avg_map50 ?? 0;
+  const avgPrecision = currentLiveUc?.avg_precision ?? 0;
+  const avgRecall = currentLiveUc?.avg_recall ?? 0;
+  const avgDice = currentLiveUc?.avg_dice ?? 0;
+  const avgIou = currentLiveUc?.avg_iou ?? 0;
+  const avgPixelAccuracy = currentLiveUc?.avg_pixel_accuracy ?? 0;
+  const avgGLoss = currentLiveUc?.avg_g_loss ?? 0;
+  const avgFid = currentLiveUc?.avg_fid ?? 0;
+  const avgDLoss = currentLiveUc?.avg_d_loss ?? 0;
+  const avgBleu1 = currentLiveUc?.avg_bleu1 ?? 0;
+  const avgBleu4 = currentLiveUc?.avg_bleu4 ?? 0;
+  const avgCider = currentLiveUc?.avg_cider ?? 0;
+  const avgAuc = currentLiveUc?.avg_auc ?? 0;
+  const avgDiagnosticF1 = currentLiveUc?.avg_diagnostic_f1 ?? (currentLiveUc?.avg_macro_f1 ?? 0);
   const slotsLeft = Math.max(0, quota - submissions);
 
   const targetAcc = currentLiveUc?.baseline?.accuracy ?? currentDataset.baseline.accuracy;
   const targetF1 = currentLiveUc?.baseline?.macro_f1 ?? currentDataset.baseline.macro_f1;
   const targetTime = currentLiveUc?.baseline?.training_time ?? currentDataset.baseline.training_time;
+  const targetMap50 = currentLiveUc?.baseline?.map50 ?? 88.5;
+  const targetPrecision = currentLiveUc?.baseline?.precision ?? 89.0;
+  const targetRecall = currentLiveUc?.baseline?.recall ?? 91.5;
+  const targetDice = currentLiveUc?.baseline?.dice ?? 82.0;
+  const targetIou = currentLiveUc?.baseline?.iou ?? 78.5;
+  const targetPixelAcc = currentLiveUc?.baseline?.pixel_accuracy ?? 91.0;
+  const targetGLoss = currentLiveUc?.baseline?.generator_loss_stability ?? 85.0;
+  const targetFid = currentLiveUc?.baseline?.fid ?? 32.0;
+  const targetDLoss = currentLiveUc?.baseline?.discriminator_loss_stability ?? 85.0;
+  const targetBleu1 = currentLiveUc?.baseline?.bleu1 ?? 64.5;
+  const targetBleu4 = currentLiveUc?.baseline?.bleu4 ?? 28.0;
+  const targetCider = currentLiveUc?.baseline?.caption_cider ?? 1.14;
+  const targetPneuRecall = currentLiveUc?.baseline?.recall ?? 94.0;
+  const targetAuc = currentLiveUc?.baseline?.auc ?? 0.93;
+  const targetDiagF1 = currentLiveUc?.baseline?.f1 ?? 90.0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -769,7 +799,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 01 • mAP@0.5
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 88.5%
+                                      {avgMap50 > 0 ? `${avgMap50}%` : `≥ ${targetMap50}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-200 flex items-center justify-center">
@@ -795,7 +825,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 02 • Precision
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 89.0%
+                                      {avgPrecision > 0 ? `${avgPrecision}%` : `≥ ${targetPrecision}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">
@@ -821,7 +851,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 03 • Recall
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 91.5%
+                                      {avgRecall > 0 ? `${avgRecall}%` : `≥ ${targetRecall}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center">
@@ -852,7 +882,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 01 • Dice Coefficient
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 82.0%
+                                      {avgDice > 0 ? `${avgDice}%` : `≥ ${targetDice}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">
@@ -862,7 +892,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Sørensen–Dice:</span>
-                                    <span className="text-purple-700 font-mono">Contour F1 ≥ 82%</span>
+                                    <span className="text-purple-700 font-mono">Contour F1 ≥ {targetDice}%</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Harmonic mean of pixel precision and recall along intricate animal fur contours.
@@ -878,7 +908,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 02 • IoU (Jaccard)
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 78.5%
+                                      {avgIou > 0 ? `${avgIou}%` : `≥ ${targetIou}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center">
@@ -888,7 +918,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Mean IoU:</span>
-                                    <span className="text-indigo-700 font-mono">Overlap ≥ 78.5%</span>
+                                    <span className="text-indigo-700 font-mono">Overlap ≥ {targetIou}%</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Intersection-over-union benchmark across foreground, background, and boundary trimaps.
@@ -904,7 +934,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 03 • Pixel Accuracy
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 91.0%
+                                      {avgPixelAccuracy > 0 ? `${avgPixelAccuracy}%` : `≥ ${targetPixelAcc}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">
@@ -914,7 +944,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Pixel Trimap Acc:</span>
-                                    <span className="text-blue-700 font-mono">≥ 91% Matching</span>
+                                    <span className="text-blue-700 font-mono">≥ {targetPixelAcc}% Matching</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Total percentage of correctly labeled pixels across image height × width.
@@ -935,7 +965,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 01 • G & D Loss Curves
                                     </span>
                                     <div className="text-base font-black text-slate-900 mt-1 flex items-center gap-2">
-                                      <span className="text-pink-600 font-mono text-sm">G: ~1.28</span>
+                                      <span className="text-pink-600 font-mono text-sm">{avgGLoss > 0 ? `${avgGLoss}% Stable` : "G: ~1.28"}</span>
                                       <span className="text-slate-300">•</span>
                                       <span className="text-purple-600 font-mono text-sm">D: ~0.62</span>
                                     </div>
@@ -986,7 +1016,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 02 • FID on Small Sample
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1 flex items-baseline gap-1.5">
-                                      ≤ 32.0 <span className="text-xs font-semibold text-slate-400 font-mono">(Lower is better)</span>
+                                      {avgFid > 0 ? `${avgFid}` : `≤ ${targetFid}`} <span className="text-xs font-semibold text-slate-400 font-mono">(Lower is better)</span>
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center">
@@ -996,7 +1026,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Fréchet Distance:</span>
-                                    <span className="text-rose-700 font-mono">FID ≤ 32.0 (Target)</span>
+                                    <span className="text-rose-700 font-mono">FID ≤ {targetFid} (Target)</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Evaluates distance between feature representations of generated vs real CelebA images.
@@ -1013,7 +1043,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                     </span>
                                     <div className="text-sm font-black text-slate-900 mt-1 flex items-center gap-1.5">
                                       <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                      Verified 4×4 Synthesis Grid
+                                      {avgDLoss > 0 ? `${avgDLoss}% Diversity` : "Verified 4×4 Synthesis Grid"}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
@@ -1060,7 +1090,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 01 • BLEU-1
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 64.5%
+                                      {avgBleu1 > 0 ? `${avgBleu1}%` : `≥ ${targetBleu1}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
@@ -1070,7 +1100,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Unigram Precision:</span>
-                                    <span className="text-amber-700 font-mono">≥ 64.5% (BLEU-1)</span>
+                                    <span className="text-amber-700 font-mono">≥ {targetBleu1}% (BLEU-1)</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Proportion of single word tokens matching human ground-truth caption vocabulary.
@@ -1086,7 +1116,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 02 • BLEU-4
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 28.0%
+                                      {avgBleu4 > 0 ? `${avgBleu4}%` : `≥ ${targetBleu4}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 flex items-center justify-center">
@@ -1096,7 +1126,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">4-Gram Fluency:</span>
-                                    <span className="text-orange-700 font-mono">≥ 28.0% (BLEU-4)</span>
+                                    <span className="text-orange-700 font-mono">≥ {targetBleu4}% (BLEU-4)</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Validates syntactic grammatical coherence and natural descriptive sequence flow.
@@ -1113,7 +1143,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                     </span>
                                     <div className="text-sm font-black text-slate-900 mt-1 flex items-center gap-1.5">
                                       <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                      Multimodal Match Checked
+                                      {avgCider > 0 ? `CIDEr: ${avgCider}` : "Multimodal Match Checked"}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200 flex items-center justify-center">
@@ -1130,7 +1160,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                     "A brown dog running through green grass chasing a tennis ball."
                                   </p>
                                   <div className="flex items-center gap-2 pt-1 border-t border-slate-200/80 text-[10px] text-slate-500 font-mono">
-                                    <span>CIDEr: 1.14</span>
+                                    <span>CIDEr: {avgCider > 0 ? avgCider : targetCider}</span>
                                     <span>•</span>
                                     <span>Meteor: 0.32</span>
                                   </div>
@@ -1154,7 +1184,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 01 • Recall (Sensitivity)
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 94.0%
+                                      {avgRecall > 0 ? `${avgRecall}%` : `≥ ${targetPneuRecall}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center">
@@ -1164,7 +1194,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Critical Priority:</span>
-                                    <span className="text-rose-700 font-mono">Sensitivity ≥ 94%</span>
+                                    <span className="text-rose-700 font-mono">Sensitivity ≥ {targetPneuRecall}%</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Clinical screening priority: strictly penalizes false negative pneumonia omissions.
@@ -1180,7 +1210,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 02 • ROC-AUC
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      ≥ 0.93
+                                      {avgAuc > 0 ? `${avgAuc}` : `≥ ${targetAuc}`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center">
@@ -1190,7 +1220,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Separation Metric:</span>
-                                    <span className="text-red-700 font-mono">AUC ≥ 0.93</span>
+                                    <span className="text-red-700 font-mono">AUC ≥ {targetAuc}</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Area under the ROC curve measuring discrimination capability across clinical thresholds.
@@ -1206,7 +1236,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                       Metric 03 • F1-Score
                                     </span>
                                     <div className="text-2xl font-black text-slate-900 mt-1">
-                                      {avgMacroF1 > 0 ? `${avgMacroF1}%` : `≥ 90.0%`}
+                                      {avgDiagnosticF1 > 0 ? `${avgDiagnosticF1}%` : `≥ ${targetDiagF1}%`}
                                     </div>
                                   </div>
                                   <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 flex items-center justify-center">
@@ -1216,7 +1246,7 @@ export const UploadProjects = ({ setActiveTab }: { setActiveTab: (tab: string) =
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
                                   <div className="flex justify-between text-[11px] font-bold">
                                     <span className="text-slate-500">Diagnostic Balance:</span>
-                                    <span className="text-orange-700 font-mono">F1 ≥ 90.0%</span>
+                                    <span className="text-orange-700 font-mono">F1 ≥ {targetDiagF1}%</span>
                                   </div>
                                   <p className="text-[10px] text-slate-400 leading-tight">
                                     Harmonic balance maintaining high screening precision alongside maximum recall.
